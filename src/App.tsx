@@ -154,10 +154,8 @@ export default function App() {
 function Logo({ small }: { small?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e9c98a] via-accent to-[#8d6a2f] shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_2px_6px_rgba(0,0,0,.25)]">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#1a150c" strokeWidth="2.2" strokeLinecap="round"><path d="M6 5h11M6 12h8M6 19h11M6 5v14" /><circle cx="18.5" cy="12" r="1.6" fill="#1a150c" stroke="none" /></svg>
-      </span>
-      {!small && <span className="leading-none"><span className="block text-[14px] font-bold tracking-[0.04em]">EDICREA</span><span className="block text-[9.5px] font-semibold tracking-[0.28em] text-accent">STUDIO · AI</span></span>}
+      <img src="/brand/logo-05.svg" alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,.28)]" />
+      {!small && <span className="leading-none"><span className="block text-[14px] font-bold tracking-[0.04em]">EDICREA</span><span className="block bg-gradient-to-r from-[#ff7a59] via-[#d6406f] to-[#8b5cf6] bg-clip-text text-[9.5px] font-semibold tracking-[0.28em] text-transparent">STUDIO · AI</span></span>}
     </span>
   )
 }
