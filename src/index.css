@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
+  --color-panel3: var(--panel3);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-info: var(--info);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+}
+
+/* ───── Jetons de design ───── */
+:root {
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --panel2: #f8f7f4;
+  --panel3: #efede7;
+  --line: #e5e2da;
+  --line2: #d4d0c6;
+  --ink: #16181b;
+  --muted: #646a73;
+  --subtle: #9aa0a8;
+  --accent: #b8893a;
+  --accent-ink: #ffffff;
+  --accent-soft: #b8893a1f;
+  --info: #2f6fde;
+  --ok: #1f9d63;
+  --warn: #c98a0c;
+  --danger: #d6453d;
+  --canvas: #e9e7e1;
+  --shadow: 0 1px 2px rgba(20, 20, 20, .06), 0 4px 16px rgba(20, 20, 20, .06);
+  --shadow-lg: 0 12px 48px rgba(20, 20, 20, .18);
+  color-scheme: light;
+}
+.dark {
+  --bg: #0c0e11;
+  --panel: #13161a;
+  --panel2: #181c21;
+  --panel3: #20252b;
+  --line: #242a31;
+  --line2: #313840;
+  --ink: #e7e9ec;
+  --muted: #9098a3;
+  --subtle: #5f6772;
+  --accent: #dcb56f;
+  --accent-ink: #17140e;
+  --accent-soft: #dcb56f1f;
+  --info: #5b8ff0;
+  --ok: #3cc488;
+  --warn: #e3a92f;
+  --danger: #ef6a62;
+  --canvas: #08090b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .25);
+  --shadow-lg: 0 16px 60px rgba(0, 0, 0, .55);
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; margin: 0; font-size: 13px; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; }
+::selection { background: var(--accent-soft); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ───── Composants de base ───── */
+.btn { @apply inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-line bg-panel px-3 text-[13px] font-medium text-ink transition-colors select-none hover:border-line2 hover:bg-panel3 disabled:cursor-not-allowed disabled:opacity-40; box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+.btn-accent { @apply inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-[13px] font-semibold text-accent-ink transition select-none hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-40; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 2px rgba(0,0,0,.2); }
+.btn-ghost { @apply inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-ink transition-colors select-none hover:bg-panel3 disabled:cursor-not-allowed disabled:opacity-35; }
+.btn-icon { @apply inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-panel3 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30; }
+.btn-icon.on { @apply bg-accent-soft text-accent; }
+.input { @apply h-8 w-full rounded-md border border-line bg-panel2 px-2.5 text-[13px] text-ink transition-colors outline-none placeholder:text-subtle hover:border-line2 focus:border-accent focus:bg-panel; }
+textarea.input { @apply h-auto py-2 leading-relaxed; }
+select.input { @apply cursor-pointer pr-7; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; }
+.label { @apply mb-1 block text-[11px] font-medium text-muted; }
+.eyebrow { @apply text-[10.5px] font-semibold uppercase tracking-[0.08em] text-subtle; }
+.card { @apply rounded-xl border border-line bg-panel; box-shadow: var(--shadow); }
+.surface { @apply border border-line bg-panel; }
+.tool { @apply relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-panel3 hover:text-ink; }
+.tool.active { @apply bg-accent text-accent-ink; box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+.kbd { @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line2 bg-panel2 px-1 font-mono text-[10px] text-muted; }
+.chip { @apply inline-flex h-6 items-center gap-1 rounded-full border border-line bg-panel2 px-2.5 text-[11.5px] text-muted; }
+.divider-v { @apply mx-1 h-5 w-px shrink-0 bg-line; }
+.seg { @apply inline-flex rounded-md border border-line bg-panel2 p-0.5; }
+.seg > button { @apply h-7 flex-1 cursor-pointer whitespace-nowrap rounded-[5px] px-2.5 text-[12px] font-medium text-muted transition-colors hover:text-ink; }
+.seg > button.on { @apply bg-panel text-ink; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 0 0 1px var(--line); }
+.panel-title { @apply flex h-10 shrink-0 items-center gap-2 border-b border-line px-3 text-[12px] font-semibold; }
+.scroll-thin { scrollbar-width: thin; }
+.canvas-bg { background-color: var(--canvas); background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 8%, transparent) 1px, transparent 0); background-size: 18px 18px; }
+.paper-shadow { box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.12), 0 18px 40px -12px rgba(0,0,0,.35); }
+
+/* Infobulles */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; z-index: 80; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);
+  white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px;
+  background: #111317; color: #f1f2f4; font-size: 11.5px; font-weight: 500; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  animation: tip-in .12s ease-out .35s both;
+}
+[data-tip-side="right"]:hover::after { left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+[data-tip-side="left"]:hover::after { left: auto; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+@keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.anim-pop { animation: pop-in .16s ease-out both; }
+.anim-fade { animation: fade-in .2s ease-out both; }
+
+input[type="range"] { accent-color: var(--accent); height: 4px; }
+input[type="checkbox"] { accent-color: var(--accent); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+ins.diff { background: color-mix(in srgb, var(--ok) 22%, transparent); text-decoration: none; border-radius: 2px; }
+del.diff { background: color-mix(in srgb, var(--danger) 20%, transparent); border-radius: 2px; }
+@font-face { font-family: EdSerif; src: url(/fonts/LiberationSerif-Regular.ttf); font-weight: 400; font-style: normal; }
+@font-face { font-family: EdSerif; src: url(/fonts/LiberationSerif-Bold.ttf); font-weight: 700; font-style: normal; }
+@font-face { font-family: EdSerif; src: url(/fonts/LiberationSerif-Italic.ttf); font-weight: 400; font-style: italic; }
+@font-face { font-family: EdSerif; src: url(/fonts/LiberationSerif-BoldItalic.ttf); font-weight: 700; font-style: italic; }
+@font-face { font-family: EdSans; src: url(/fonts/LiberationSans-Regular.ttf); font-weight: 400; font-style: normal; }
+@font-face { font-family: EdSans; src: url(/fonts/LiberationSans-Bold.ttf); font-weight: 700; font-style: normal; }
+@font-face { font-family: EdSans; src: url(/fonts/LiberationSans-Italic.ttf); font-weight: 400; font-style: italic; }
+@font-face { font-family: EdSans; src: url(/fonts/LiberationSans-BoldItalic.ttf); font-weight: 700; font-style: italic; }
+@font-face { font-family: EdMono; src: url(/fonts/LiberationMono-Regular.ttf); font-weight: 400; font-style: normal; }
+@font-face { font-family: EdMono; src: url(/fonts/LiberationMono-Bold.ttf); font-weight: 700; font-style: normal; }
+@font-face { font-family: EdMono; src: url(/fonts/LiberationMono-Italic.ttf); font-weight: 400; font-style: italic; }
+@font-face { font-family: EdMono; src: url(/fonts/LiberationMono-BoldItalic.ttf); font-weight: 700; font-style: italic; }
