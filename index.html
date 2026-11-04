@@ -20,26 +20,34 @@
       #splash { position: fixed; inset: 0; z-index: 9999; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
         background: #0b0c10; transition: opacity .8s cubic-bezier(.4,0,.2,1), visibility .8s; cursor: pointer; -webkit-font-smoothing: antialiased }
       #splash.out { opacity: 0; visibility: hidden }
-      #splash .glow { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0; animation: sp-glow 2.2s ease-out .1s forwards }
+      #splash .glow { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0; animation: sp-glow 3s ease-out .2s forwards }
       #splash .g1 { width: 70vmax; height: 70vmax; left: -28vmax; top: -30vmax; background: #ff7a59; --o: .38 }
       #splash .g2 { width: 75vmax; height: 75vmax; right: -32vmax; bottom: -34vmax; background: #6c3fc4; --o: .42 }
-      #splash .g3 { width: 40vmax; height: 40vmax; left: 50%; top: 50%; margin: -20vmax 0 0 -20vmax; background: #d6406f; --o: .16; animation-delay: .8s }
+      #splash .g3 { width: 40vmax; height: 40vmax; left: 50%; top: 50%; margin: -20vmax 0 0 -20vmax; background: #d6406f; --o: .16; animation-delay: 1.2s }
       #splash .mark { position: relative; width: min(34vw, 156px); aspect-ratio: 1; opacity: 0; transform: scale(.55) rotate(-10deg);
-        animation: sp-pop 1.1s cubic-bezier(.2,1.3,.3,1) .35s forwards; filter: drop-shadow(0 22px 44px rgba(214,64,111,.42)) }
+        animation: sp-pop 1.5s cubic-bezier(.2,1.25,.3,1) .5s forwards; filter: drop-shadow(0 22px 44px rgba(214,64,111,.42)) }
       #splash .mark svg { width: 100%; height: 100%; display: block; overflow: visible }
-      #splash .reveal { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1.35s cubic-bezier(.65,0,.35,1) .95s forwards }
+      #splash .reveal { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1.9s cubic-bezier(.65,0,.35,1) 1.4s forwards }
       #splash .spark { transform-box: fill-box; transform-origin: center; opacity: 0; transform: scale(0) rotate(-120deg);
-        animation: sp-spark .75s cubic-bezier(.2,1.5,.35,1) 2.05s forwards, sp-twinkle 2.6s ease-in-out 2.9s infinite }
+        animation: sp-spark 1s cubic-bezier(.2,1.5,.35,1) 3.05s forwards, sp-twinkle 3s ease-in-out 4.1s infinite }
       #splash .sheen { position: absolute; inset: 0; border-radius: 23%; overflow: hidden; pointer-events: none }
       #splash .sheen::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%;
-        background: linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform: skewX(-18deg); animation: sp-sheen 1.1s ease-in-out 2.5s forwards }
+        background: linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform: skewX(-18deg); animation: sp-sheen 1.4s ease-in-out 3.6s forwards }
       #splash .word { display: flex; margin-top: 34px; font: 800 clamp(26px, 7vw, 40px)/1 Inter, system-ui, -apple-system, sans-serif; letter-spacing: .14em; color: #f3f1ec; padding-left: .14em }
-      #splash .word span { display: inline-block; opacity: 0; transform: translateY(18px); filter: blur(6px); animation: sp-letter .7s cubic-bezier(.2,.8,.2,1) forwards }
+      #splash .word span { display: inline-block; opacity: 0; transform: translateY(18px); filter: blur(6px); animation: sp-letter .9s cubic-bezier(.2,.8,.2,1) forwards }
       #splash .word .ai { background: linear-gradient(100deg, #ff7a59, #d6406f 55%, #8b5cf6); -webkit-background-clip: text; background-clip: text; color: transparent }
       #splash .tag { margin-top: 16px; font: 600 clamp(10px, 2.6vw, 12px)/1 Inter, system-ui, sans-serif; letter-spacing: .32em; text-transform: uppercase; color: #dcb56f; padding-left: .32em;
-        opacity: 0; transform: translateY(8px); animation: sp-in .8s ease 3.25s forwards }
-      #splash .bar { position: absolute; bottom: max(56px, calc(env(safe-area-inset-bottom) + 36px)); width: 132px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; opacity: 0; animation: sp-in .5s ease 3.5s forwards }
-      #splash .bar i { display: block; height: 100%; width: 38%; background: linear-gradient(90deg, transparent, #d6406f, #ff7a59, transparent); animation: sp-load 1.4s ease-in-out infinite }
+        opacity: 0; transform: translateY(8px); animation: sp-in 1s ease 4.7s forwards }
+      #splash .start { margin-top: 54px; display: inline-flex; align-items: center; gap: 10px; padding: 13px 26px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.05);
+        font: 600 clamp(13px, 3.6vw, 15px)/1 Inter, system-ui, sans-serif; letter-spacing: .04em; color: #f3f1ec; opacity: 0; transform: translateY(10px);
+        animation: sp-in .9s ease 5.4s forwards, sp-breathe 2.4s ease-in-out 6.4s infinite; -webkit-tap-highlight-color: transparent }
+      #splash .start::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, #ff7a59, #d6406f); box-shadow: 0 0 12px #d6406f }
+      #splash .bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 0 max(26px, calc(env(safe-area-inset-bottom) + 14px)); display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; animation: sp-in 1s ease 5.8s forwards }
+      #splash .bar .line { width: 132px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden }
+      #splash .bar .line i { display: block; height: 100%; width: 38%; background: linear-gradient(90deg, transparent, #d6406f, #ff7a59, transparent); animation: sp-load 2.2s ease-in-out infinite }
+      #splash .bar .by { font: 500 12px/1 Inter, system-ui, sans-serif; letter-spacing: .14em; color: rgba(243,241,236,.55) }
+      #splash .bar .by b { font-weight: 600; color: #dcb56f; letter-spacing: .1em }
+      @keyframes sp-breathe { 0%, 100% { opacity: 1; border-color: rgba(255,255,255,.16) } 50% { opacity: .62; border-color: rgba(214,64,111,.55) } }
       @keyframes sp-glow { to { opacity: var(--o) } }
       @keyframes sp-pop { 60% { opacity: 1 } to { opacity: 1; transform: none } }
       @keyframes sp-draw { to { stroke-dashoffset: 0 } }
@@ -72,9 +80,10 @@
         </svg>
         <div class="sheen"></div>
       </div>
-      <div class="word"><span style="animation-delay:2.35s">E</span><span style="animation-delay:2.42s">D</span><span style="animation-delay:2.49s">I</span><span style="animation-delay:2.56s">C</span><span style="animation-delay:2.63s">R</span><span style="animation-delay:2.70s">E</span><span style="animation-delay:2.77s">A</span><span style="animation-delay:2.9s">&nbsp;</span><span class="ai" style="animation-delay:2.95s">A</span><span class="ai" style="animation-delay:3.02s">I</span></div>
+      <div class="word"><span style="animation-delay:3.30s">E</span><span style="animation-delay:3.39s">D</span><span style="animation-delay:3.48s">I</span><span style="animation-delay:3.57s">C</span><span style="animation-delay:3.66s">R</span><span style="animation-delay:3.75s">E</span><span style="animation-delay:3.84s">A</span><span style="animation-delay:4.05s">&nbsp;</span><span class="ai" style="animation-delay:4.14s">A</span><span class="ai" style="animation-delay:4.23s">I</span></div>
       <div class="tag">Studio de création &amp; d’édition · IA</div>
-      <div class="bar"><i></i></div>
+      <div class="start">Appuyez pour commencer</div>
+      <div class="bar"><div class="line"><i></i></div><div class="by">by <b>Oluwatobi</b></div></div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

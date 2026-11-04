@@ -6,13 +6,20 @@ import { registerServiceWorker } from './lib/pwa'
 
 registerServiceWorker()
 
-// Écran d'ouverture : visible environ 4,7 s (le temps de l'animation), puis fondu vers l'application.
+// Écran d'ouverture : l'animation se joue, puis l'utilisateur appuie pour entrer dans l'application.
 const splash = document.getElementById('splash')
 if (splash) {
-  const hide = () => { splash.classList.add('out'); setTimeout(() => splash.remove(), 700) }
+  let gone = false
+  const hide = () => {
+    if (gone) return
+    gone = true
+    splash.classList.add('out')
+    window.removeEventListener('keydown', onKey)
+    setTimeout(() => splash.remove(), 900)
+  }
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') hide() }
   splash.addEventListener('click', hide)
-  const elapsed = performance.now()
-  setTimeout(hide, Math.max(800, 4700 - elapsed))
+  window.addEventListener('keydown', onKey)
 }
 
 createRoot(document.getElementById('root')!).render(
