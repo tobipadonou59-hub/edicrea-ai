@@ -40,6 +40,7 @@ Actions disponibles :
 - {"type":"generate_covers"}
 - {"type":"poster_brief","patch":{description, title, subtitle, date, place, contact, kind, style, colors}}
 - {"type":"generate_posters"}
+- {"type":"generate_image","prompt":"description visuelle détaillée, sans texte","aspect":"1:1"|"2:3"|"3:4"|"4:3"|"16:9"|"9:16","target":"editor"|"cover"|"poster"}  (crée une image avec Nano Banana ou GPT Image : l'insère dans l'éditeur ouvert, ou l'ajoute aux images de la couverture / de l'affiche)
 - {"type":"design","instruction":"..."}  (modifie le document ouvert dans l'éditeur graphique : typographie, composition, couleurs…)
 N'utilise que les actions pertinentes pour le contexte. Si une action est impossible (ex. pas de projet ouvert), explique comment faire ou crée le projet.`
 
@@ -69,6 +70,17 @@ export default function Assistant() {
           case 'generate_covers': await generateCovers(); done.push('4 propositions de couverture générées'); break
           case 'poster_brief': s.update((p) => { if (p.poster) Object.assign(p.poster.brief, a.patch) }); done.push('Brief d’affiche mis à jour'); break
           case 'generate_posters': await generatePosters(); done.push('4 propositions d’affiche générées'); break
+          case 'generate_image': {
+            const { generateImages, imageReady } = await import('../lib/imageGen')
+            if (!imageReady()) { done.push('⚠ Ajoutez une clé Nano Banana (Google) ou GPT Image (OpenAI) dans Paramètres'); break }
+            const [img] = await generateImages({ prompt: String(a.prompt || ''), aspect: (a.aspect as '1:1') || '1:1', n: 1 })
+            const target = String(a.target || (editorBridge.current ? 'editor' : s.project?.kind === 'poster' ? 'poster' : 'cover'))
+            if (target === 'editor' && editorBridge.current) { await editorBridge.current.insertImage(img); done.push('Image générée et insérée dans le document') }
+            else if (s.project?.book) { s.update((p) => { p.book!.cover.info.images.push(img); p.step = 4 }); done.push('Image générée et ajoutée aux images de la couverture') }
+            else if (s.project?.poster) { s.update((p) => { p.poster!.brief.images.push(img) }); done.push('Image générée et ajoutée au brief de l’affiche') }
+            else { s.addAsset({ name: 'Image IA', type: 'image', data: img }); done.push('Image générée et enregistrée dans la bibliothèque') }
+            break
+          }
           case 'design': {
             if (!editorBridge.current) { done.push('⚠ Ouvrez d’abord un document dans l’éditeur graphique'); break }
             const txt = await askClaude({ maxTokens: 16000, system: DESIGN_SYSTEM_PROMPT, messages: [{ role: 'user', content: `Demande : ${a.instruction}\n\nÉtat du document :\n${editorBridge.current.summary()}` }] })
@@ -89,14 +101,15 @@ export default function Assistant() {
     const s = useStore.getState()
     const kind = s.project?.kind
     const acts: Action[] = []
-    if (/couverture/.test(t)) { if (kind !== 'book') return 'Ouvrez ou créez un projet de **livre** pour générer des couvertures (Nouveau projet → Livre).'; acts.push({ type: 'generate_covers' }) }
+    if (/(génère|genere|crée|cree|dessine|fais|produis)[^.]*\b(image|illustration|photo|visuel|dessin)/.test(t)) acts.push({ type: 'generate_image', prompt: q, aspect: /couverture|portrait|livre/.test(t) ? '2:3' : /bannière|paysage|youtube/.test(t) ? '16:9' : '1:1' })
+    else if (/couverture/.test(t)) { if (kind !== 'book') return 'Ouvrez ou créez un projet de **livre** pour générer des couvertures (Nouveau projet → Livre).'; acts.push({ type: 'generate_covers' }) }
     else if (/affiche/.test(t) && /(propos|cré|génèr|fais)/.test(t)) { if (kind !== 'poster') { await s.createProject('poster', 'Nouvelle affiche'); s.update((p) => { p.poster!.brief.description = q }); } acts.push({ type: 'generate_posters' }) }
     else if (/sommaire|table des mati/.test(t)) acts.push({ type: 'toc' })
     else if (/impression|imprim/.test(t)) acts.push({ type: 'print_ready' })
     else if (/corrig|faute|orthograph/.test(t)) acts.push({ type: 'correct', mode: /pro/.test(t) ? 'pro' : /révis|cohéren|structure/.test(t) ? 'editorial' : 'simple' })
     else if (/colonne/.test(t)) { const n = parseInt(t.match(/(\d)\s*colonne/)?.[1] || '2'); acts.push({ type: 'layout', patch: { columns: n } }) }
     else if (/typograph|hiérarchie|réorganis|composition/.test(t)) return 'Ces améliorations graphiques demandent l’IA : ajoutez une clé API Claude dans **Paramètres**. En attendant, utilisez les outils d’alignement et le panneau Typographie de l’éditeur.'
-    else return 'Sans clé API, je comprends les demandes courantes : *corriger*, *sommaire*, *impression*, *couverture*, *affiche*, *colonnes*. Ajoutez une clé API Claude dans **Paramètres** pour un assistant complet.'
+    else return 'Sans clé API Claude, je comprends les demandes courantes : *corriger*, *sommaire*, *impression*, *couverture*, *affiche*, *colonnes*, *génère une image de…*. Ajoutez une clé API Claude dans **Paramètres** pour un assistant complet.'
     const done = await exec(acts)
     return done.map((d) => '✓ ' + d).join('\n\n')
   }

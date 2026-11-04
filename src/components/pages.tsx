@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BookOpen, Image as ImageIcon, PenTool, Copy, Trash2, Upload, Plus, FileText, Palette, Type, Search, KeyRound, Moon, Sun, ExternalLink, LayoutGrid, List, MoreHorizontal, FolderOpen, LayoutTemplate, History as HistoryIcon, Sparkles, ArrowRight, Check, Shield, Database, Cpu, FileUp, Clock, Monitor } from 'lucide-react'
 import { useStore, type ProjectMeta } from '../lib/store'
 import { POSTER_FORMATS, BOOK_FORMATS } from '../lib/defaults'
@@ -6,6 +6,7 @@ import { readAsDataURL } from '../lib/importers'
 import type { Project, ProjectKind } from '../lib/types'
 import { EmptyState, Field, FileButton, Menu, MenuItem, MenuSep, PageHeader, Seg } from './ui'
 import { aiReady } from '../lib/ai'
+import { GEMINI_MODELS, OPENAI_MODELS, generateImages } from '../lib/imageGen'
 import { STEPS } from './book/steps'
 
 const KIND: Record<ProjectKind, { label: string; icon: typeof BookOpen; color: string; grad: string }> = {
@@ -402,8 +403,9 @@ export function Settings() {
   const { settings, setSettings, notify, index, assets, templates } = useStore()
   const [key, setKey] = useState(settings.apiKey)
   const [show, setShow] = useState(false)
-  const [sec, setSec] = useState<'general' | 'ai' | 'data'>('general')
-  const nav = [{ v: 'general' as const, label: 'Général', icon: Monitor }, { v: 'ai' as const, label: 'Intelligence artificielle', icon: Cpu }, { v: 'data' as const, label: 'Données et confidentialité', icon: Database }]
+  const [sec, setSec] = useState<'general' | 'ai' | 'images' | 'data'>('general')
+  useEffect(() => { const h = (e: Event) => setSec((e as CustomEvent).detail); window.addEventListener('edicrea:settings', h); return () => window.removeEventListener('edicrea:settings', h) }, [])
+  const nav = [{ v: 'general' as const, label: 'Général', icon: Monitor }, { v: 'ai' as const, label: 'Intelligence artificielle', icon: Cpu }, { v: 'images' as const, label: 'Génération d’images', icon: ImageIcon }, { v: 'data' as const, label: 'Données et confidentialité', icon: Database }]
   return (
     <div className={`${wrap} !max-w-5xl`}>
       <PageHeader eyebrow="Compte" title="Paramètres" />
@@ -446,6 +448,7 @@ export function Settings() {
               </div>
             </div>
           )}
+          {sec === 'images' && <ImageSettings />}
           {sec === 'data' && (
             <div className="card divide-y divide-line">
               <div className="flex items-start gap-3 p-5"><Shield size={18} className="mt-0.5 text-accent" /><div><h3 className="font-semibold">Stockage local</h3><p className="mt-0.5 text-[12.5px] text-muted">Projets, modèles et ressources sont enregistrés automatiquement dans ce navigateur (IndexedDB). Rien n’est envoyé à un serveur, hormis les requêtes IA si vous les activez.</p></div></div>
@@ -455,6 +458,67 @@ export function Settings() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function ImageSettings() {
+  const { settings, setSettings, notify } = useStore()
+  const [g, setG] = useState(settings.geminiKey)
+  const [o, setO] = useState(settings.openaiKey)
+  const [test, setTest] = useState<{ img?: string; busy?: string; err?: string }>({})
+  const run = async (provider: 'gemini' | 'openai') => {
+    setTest({ busy: provider === 'gemini' ? 'Nano Banana' : 'GPT Image' })
+    try { const [img] = await generateImages({ prompt: 'Une petite plume de calligraphie dorée posée sur une feuille de papier crème, lumière douce, style illustration éditoriale, aucun texte.', aspect: '1:1', n: 1, provider }); setTest({ img }) } catch (e) { setTest({ err: (e as Error).message }) }
+  }
+  const Row = ({ id, name, by, url, keyVal, setKey, models, model, onModel, hint }: { id: 'gemini' | 'openai'; name: string; by: string; url: string; keyVal: string; setKey: (v: string) => void; models: { id: string; label: string }[]; model: string; onModel: (v: string) => void; hint: string }) => {
+    const saved = id === 'gemini' ? settings.geminiKey : settings.openaiKey
+    return (
+      <div className="space-y-3 p-5">
+        <div className="flex items-start gap-3">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${id === 'gemini' ? 'bg-[#4285f4]/15 text-[#4285f4]' : 'bg-ok/15 text-ok'}`}>{id === 'gemini' ? 'G' : 'AI'}</span>
+          <div className="min-w-0 flex-1"><h3 className="font-semibold">{name}</h3><p className="text-[12.5px] text-muted">{by} · {hint}</p></div>
+          {saved ? <span className="chip !text-ok"><Check size={11} /> Configuré</span> : <span className="chip">Non configuré</span>}
+        </div>
+        <Field label="Clé API" hint={`Obtenez une clé sur ${url}`}>
+          <div className="flex gap-2"><input className="input font-mono" type="password" value={keyVal} onChange={(e) => setKey(e.target.value)} placeholder={id === 'gemini' ? 'AIza…' : 'sk-…'} />
+            <button className="btn-accent" onClick={() => { setSettings(id === 'gemini' ? { geminiKey: keyVal.trim(), imageProvider: keyVal.trim() ? 'gemini' : settings.imageProvider } : { openaiKey: keyVal.trim(), imageProvider: keyVal.trim() && !settings.geminiKey ? 'openai' : settings.imageProvider }); notify(keyVal.trim() ? `${name} activé.` : 'Clé supprimée.') }}>Enregistrer</button></div>
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Field label="Modèle">
+            <div className="flex gap-2">
+              <select className="input" value={models.some((m) => m.id === model) ? model : '__custom'} onChange={(e) => e.target.value !== '__custom' && onModel(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}<option value="__custom">Autre modèle…</option></select>
+              <input className="input !w-48 font-mono !text-[12px]" value={model} onChange={(e) => onModel(e.target.value.trim())} />
+            </div>
+          </Field>
+          <div className="flex items-end"><button className="btn w-full" disabled={!saved || !!test.busy} onClick={() => void run(id)}><Sparkles size={14} /> Tester</button></div>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="card divide-y divide-line">
+      <div className="flex items-start gap-3 p-5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent"><ImageIcon size={17} /></span>
+        <div className="flex-1"><h3 className="font-semibold">Génération d’images par IA</h3><p className="mt-0.5 text-[12.5px] text-muted">Illustrations de couverture, visuels d’affiche, images pour vos livres et retouche par description. Les clés restent dans ce navigateur et ne sont envoyées qu’au fournisseur choisi, qui facture la génération sur votre compte.</p></div>
+      </div>
+      <div className="p-5">
+        <span className="label">Générateur utilisé par défaut</span>
+        <Seg className="flex w-full max-w-sm" value={settings.imageProvider} onChange={(v) => setSettings({ imageProvider: v })} options={[{ v: 'gemini', label: 'Nano Banana (Google)' }, { v: 'openai', label: 'GPT Image (OpenAI)' }]} />
+      </div>
+      {Row({ id: 'gemini', name: 'Nano Banana', by: 'Google Gemini', url: 'aistudio.google.com/apikey', keyVal: g, setKey: setG, models: GEMINI_MODELS, model: settings.geminiModel, onModel: (v) => setSettings({ geminiModel: v }), hint: 'excellent pour retoucher une image et garder un même personnage' })}
+      {Row({ id: 'openai', name: 'GPT Image', by: 'OpenAI', url: 'platform.openai.com/api-keys', keyVal: o, setKey: setO, models: OPENAI_MODELS, model: settings.openaiModel, onModel: (v) => setSettings({ openaiModel: v }), hint: 'très fidèle aux consignes détaillées' })}
+      <div className="p-5">
+        <span className="label">Qualité (GPT Image)</span>
+        <Seg className="flex w-full max-w-sm" value={settings.imageQuality} onChange={(v) => setSettings({ imageQuality: v })} options={[{ v: 'low', label: 'Brouillon' }, { v: 'medium', label: 'Standard' }, { v: 'high', label: 'Haute' }]} />
+      </div>
+      {(test.busy || test.img || test.err) && (
+        <div className="flex items-center gap-4 p-5">
+          {test.busy && <span className="text-[12.5px] text-muted">Test de {test.busy} en cours…</span>}
+          {test.img && <><img src={test.img} className="h-24 w-24 rounded-lg border border-line object-cover" /><span className="flex items-center gap-2 text-[13px] text-ok"><Check size={15} /> La génération d’images fonctionne.</span></>}
+          {test.err && <span className="text-[12.5px] text-danger">{test.err}</span>}
+        </div>
+      )}
     </div>
   )
 }

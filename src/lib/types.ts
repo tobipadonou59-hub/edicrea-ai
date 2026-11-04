@@ -193,4 +193,10 @@ export interface Settings {
   model: string
   userName: string
   effort: 'low' | 'medium' | 'high'
+  imageProvider: 'gemini' | 'openai'
+  geminiKey: string
+  geminiModel: string
+  openaiKey: string
+  openaiModel: string
+  imageQuality: 'low' | 'medium' | 'high' | 'auto'
 }

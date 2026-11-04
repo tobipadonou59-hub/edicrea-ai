@@ -52,7 +52,7 @@ interface State {
   setAssistant: (o: boolean) => void
 }
 
-const defaultSettings: Settings = { theme: 'dark', apiKey: '', apiBase: '', model: 'claude-opus-5-5', userName: 'Moi', effort: 'medium' }
+const defaultSettings: Settings = { theme: 'dark', apiKey: '', apiBase: '', model: 'claude-opus-5-5', userName: 'Moi', effort: 'medium', imageProvider: 'gemini', geminiKey: '', geminiModel: 'gemini-2.5-flash-image', openaiKey: '', openaiModel: 'gpt-image-2', imageQuality: 'high' }
 
 function loadSettings(): Settings {
   try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem('edicrea.settings') || '{}') } } catch { return defaultSettings }

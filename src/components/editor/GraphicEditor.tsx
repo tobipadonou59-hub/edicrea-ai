@@ -17,6 +17,7 @@ import { useStore } from '../../lib/store'
 import type { DesignDoc } from '../../lib/types'
 import { Color, Field, Menu, MenuItem, MenuSep, Num, Slider, Toggle, FileButton, Modal, Section, Seg, Tabs } from '../ui'
 import { aiReady, askClaude, extractJSON } from '../../lib/ai'
+import ImageGenDialog from '../ImageGenDialog'
 
 type Tool = 'select' | 'hand' | 'lasso' | 'rect' | 'ellipse' | 'triangle' | 'line' | 'star' | 'text' | 'pencil' | 'brush' | 'spray' | 'eraser' | 'pen' | 'heal'
 type Obj = FabricObject & { name?: string; edRole?: string; edId?: string; edFilters?: Record<string, number> }
@@ -25,6 +26,7 @@ export interface EditorBridge {
   summary: () => string
   applyOps: (ops: DesignOp[]) => Promise<number>
   selectionIds: () => string[]
+  insertImage: (src: string) => Promise<void>
 }
 export type DesignOp = { id?: string; set?: Record<string, unknown>; delete?: boolean; add?: { type: 'text' | 'rect' | 'circle'; props: Record<string, unknown> }; order?: 'front' | 'back' }
 export const editorBridge: { current: EditorBridge | null } = { current: null }
@@ -102,6 +104,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
   const [docSize, setDocSize] = useState({ w: doc.width, h: doc.height })
   const [rulers, setRulers] = useState(() => window.innerWidth >= 1024)
   const [sheet, setSheet] = useState(false)
+  const [gen, setGen] = useState<null | { replace: boolean; ref?: string }>(null)
   const [rulerTick, setRulerTick] = useState(0)
   const [sizeOpen, setSizeOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<'props' | 'layers'>('props')
@@ -570,6 +573,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
       return JSON.stringify({ document: { width: docRef.current.width, height: docRef.current.height, type: kind }, objects: objs, selection: (canvas.getActiveObjects() as Obj[]).map((o) => o.edId) })
     },
     selectionIds: () => actives().map((o) => ensureId(o)),
+    insertImage: (src) => addImage(src, 'Image IA'),
     applyOps: async (ops) => {
       const canvas = c()
       let n = 0
@@ -709,6 +713,8 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
               <div className="grid max-h-48 grid-cols-4 gap-1 overflow-y-auto p-1.5">{store.assets.filter((x) => x.type === 'image' || x.type === 'logo').slice(0, 24).map((x) => <button key={x.id} className="canvas-bg aspect-square overflow-hidden rounded border border-line hover:border-accent" onClick={() => { close(); void addImage(x.data, x.name) }}><img src={x.data} className="h-full w-full object-contain" /></button>)}</div>
             </>}
             <MenuSep />
+            <MenuItem icon={Sparkles} onClick={() => { close(); setGen({ replace: false, ref: isImage(active()) ? (active() as FabricImage).getSrc() : undefined }) }}>Générer une image (IA)…</MenuItem>
+            <MenuSep />
             <MenuItem icon={Type} shortcut="T" onClick={() => { close(); setTool('text') }}>Bloc de texte</MenuItem>
             <MenuItem icon={Spline} onClick={() => { close(); setArcOpen(true) }}>Texte sur tracé</MenuItem>
           </>}
@@ -830,7 +836,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
           {panelTab === 'props' ? (
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
               <Properties key={(a?.edId || 'none') + sel.length} o={a} sel={sel} setProp={setProp} fonts={fonts} applyFilters={applyFilters} pixelEdit={pixelEdit} replaceImage={replaceImage} mask={mask} group={group} ungroup={ungroup}
-                doc={{ ...docRef.current }} kind={kind} resizeDoc={resizeDoc} bg={(cv.current?.backgroundColor as string) || '#ffffff'} setBg={(v) => { c().backgroundColor = v; c().requestRenderAll(); pushHistory() }} toUnit={toUnit} unit={unit} />
+                onAiEdit={(src) => setGen({ replace: true, ref: src })} doc={{ ...docRef.current }} kind={kind} resizeDoc={resizeDoc} bg={(cv.current?.backgroundColor as string) || '#ffffff'} setBg={(v) => { c().backgroundColor = v; c().requestRenderAll(); pushHistory() }} toUnit={toUnit} unit={unit} />
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
@@ -868,6 +874,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
         </div>
       </div>
 
+      {gen && <ImageGenDialog title={gen.replace ? 'Modifier l’image avec l’IA' : 'Générer une image'} reference={gen.ref} initialAspect={docSize.w > docSize.h * 1.2 ? '16:9' : docSize.h > docSize.w * 1.2 ? '3:4' : '1:1'} onClose={() => setGen(null)} onPick={(d) => { if (gen.replace) void replaceImage(d); else void addImage(d, 'Image IA'); store.addAsset({ name: 'Image IA ' + new Date().toLocaleString('fr-FR'), type: 'image', data: d }) }} />}
       {exportOpen && <ExportDialog doc={docRef.current} onClose={() => setExportOpen(false)} onExport={(f, o) => void exportFile(f, o)} />}
       {arcOpen && <ArcDialog fonts={fonts} onClose={() => setArcOpen(false)} onOk={(t, r, s, f, col) => { const g = arcText(t, r, s, f, col, docRef.current.width / 2 - r, docRef.current.height / 2 - r); c().add(g); c().setActiveObject(g); setArcOpen(false) }} />}
     </div>
@@ -952,7 +959,8 @@ Réponds UNIQUEMENT avec un objet JSON : {"explanation": "résumé court en fran
 Chaque op : {"id": "...", "set": {propriétés Fabric : left, top, width, height, angle, opacity, fill, stroke, strokeWidth, fontFamily, fontSize, fontWeight, fontStyle, textAlign, charSpacing (1/1000 em), lineHeight, text, shadow ...}} ou {"id": "...", "delete": true} ou {"add": {"type": "text"|"rect"|"circle", "props": {...}}} ou {"id": "...", "order": "front"|"back"}.
 Ne modifie jamais le contenu des textes sauf demande explicite. Respecte les marges et l'équilibre de la page.`
 
-function Properties({ o, sel, setProp, fonts, applyFilters, pixelEdit, replaceImage, mask, group, ungroup, doc, kind, resizeDoc, bg, setBg, toUnit, unit }: {
+function Properties({ o, sel, setProp, fonts, applyFilters, pixelEdit, replaceImage, mask, group, ungroup, doc, kind, resizeDoc, bg, setBg, toUnit, unit, onAiEdit }: {
+  onAiEdit: (src: string) => void
   o?: Obj; sel: Obj[]; setProp: (p: Record<string, unknown>, o?: Obj) => void; fonts: string[]
   applyFilters: (img: FabricImage & Obj, f: Record<string, number>) => void
   pixelEdit: (img: FabricImage & Obj, fn: (el: HTMLImageElement) => string) => Promise<void>
@@ -1115,6 +1123,10 @@ function Properties({ o, sel, setProp, fonts, applyFilters, pixelEdit, replaceIm
 
       {img && (
         <>
+          <Section title="Retouche par l’IA" icon={Sparkles}>
+            <button className="btn-accent w-full" onClick={() => onAiEdit(img.getSrc())}><Wand2 size={14} /> Modifier cette image avec l’IA…</button>
+            <p className="text-[11px] leading-snug text-subtle">Nano Banana ou GPT Image : « remplace le fond par une plage », « style aquarelle », « ajoute un chapeau »… L’image modifiée remplace celle-ci (Ctrl Z pour revenir).</p>
+          </Section>
           <Section title="Réglages photo" icon={SlidersHorizontal} action={<button className="text-[11px] font-medium text-accent hover:underline" onClick={() => { setF({ ...FILTER_DEFAULT }); applyFilters(img, { ...FILTER_DEFAULT }) }}>Réinitialiser</button>}>
             <Slider label="Luminosité" value={f.brightness} min={-1} max={1} onChange={(v) => upd('brightness', v)} />
             <Slider label="Contraste" value={f.contrast} min={-1} max={1} onChange={(v) => upd('contrast', v)} />

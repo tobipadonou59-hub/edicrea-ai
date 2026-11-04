@@ -20,7 +20,15 @@ EDICREA AI est une application web installable (PWA) : depuis l'adresse du site,
 - `public/manifest.webmanifest` : nom, icônes, raccourcis.
 - `public/sw.js` : service worker (cache hors-ligne, mises à jour automatiques).
 - `public/brand/logo-01.svg` … `logo-10.svg` : propositions de logo.
-- `node scripts/make-icons.cjs 03` : régénère toutes les icônes à partir du logo choisi.
+- `node scripts/make-icons.cjs 05` : régénère toutes les icônes à partir du logo choisi.
+
+## Génération d'images (Nano Banana / GPT Image)
+
+Paramètres → **Génération d'images** : clé Google (Nano Banana, modèles Gemini Image) et/ou clé OpenAI (GPT Image). Utilisé pour :
+- les illustrations des 4 propositions de couverture et d'affiche (sans texte, la typographie reste éditable) ;
+- « Insérer → Générer une image (IA) » dans l'éditeur graphique, avec styles, formats et images de référence ;
+- « Modifier cette image avec l'IA » (retouche par description) sur une image sélectionnée ;
+- les images d'illustration dans le livre (étape Composer) et l'assistant (« génère une image de… »).
 
 ## Modules
 

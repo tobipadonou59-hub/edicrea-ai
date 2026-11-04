@@ -7,6 +7,7 @@ import { aiReady, askClaude, extractJSON } from '../../lib/ai'
 import type { Block, BlockType, StyleSheet, TextStyle } from '../../lib/types'
 import { Color, Field, Num, Spinner, Toggle, FileButton } from '../ui'
 import { cssFamily } from '../../lib/layout'
+import ImageGenDialog from '../ImageGenDialog'
 
 const TYPE_LABEL: Record<BlockType, string> = { h1: 'Titre 1 (chapitre)', h2: 'Titre 2', h3: 'Titre 3', p: 'Paragraphe', quote: 'Citation', li: 'Liste à puces', box: 'Encadré', image: 'Image', table: 'Tableau', pagebreak: 'Saut de page' }
 const STYLE_KEYS = ['h1', 'h2', 'h3', 'p', 'quote', 'li', 'box'] as const
@@ -143,6 +144,7 @@ function BlockEditor({ b, styles, onChange, onFocusText, onMove, onDelete, onIns
 }) {
   const [menu, setMenu] = useState(false)
   const [comment, setComment] = useState(false)
+  const [gen, setGen] = useState(false)
   const s = (styles as Record<string, TextStyle>)[b.type]
   const TAG: Record<BlockType, string> = { h1: 'T1', h2: 'T2', h3: 'T3', p: '¶', quote: '❝', li: '•', box: '▣', image: 'Img', table: 'Tab', pagebreak: '↵' }
   return (
@@ -162,6 +164,7 @@ function BlockEditor({ b, styles, onChange, onFocusText, onMove, onDelete, onIns
           {menu && <div className="anim-pop absolute right-0 z-30 mt-1 w-44 rounded-lg border border-[#e2ddd2] bg-white p-1 shadow-xl" onMouseLeave={() => setMenu(false)}>
             {(['p', 'h1', 'h2', 'h3', 'quote', 'li', 'box', 'table', 'pagebreak'] as BlockType[]).map((t) => <button key={t} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#f4f1ea]" onClick={() => { onInsert(t); setMenu(false) }}><span className="w-6 text-[10px] font-semibold text-[#a19b8f]">{TAG[t]}</span>{TYPE_LABEL[t]}</button>)}
             <FileButton accept="image/*" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-[#f4f1ea]" onFiles={async (f) => { onInsert('image', { src: await readAsDataURL(f[0]), widthPct: 100 }); setMenu(false) }}><span className="w-6 text-[10px] font-semibold text-[#a19b8f]">Img</span>Image…</FileButton>
+            <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] text-[#9a6f25] hover:bg-[#f4f1ea]" onClick={() => { setGen(true); setMenu(false) }}><span className="w-6 text-[10px] font-semibold">IA</span>Image générée par IA…</button>
           </div>}
         </div>
         <span className="mx-0.5 h-4 w-px bg-[#e2ddd2]" />
@@ -183,6 +186,7 @@ function BlockEditor({ b, styles, onChange, onFocusText, onMove, onDelete, onIns
             placeholder={b.type.startsWith('h') ? 'Titre…' : 'Texte…'}
             style={s ? { fontFamily: cssFamily(s.font), fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', fontSize: Math.min(28, s.size * 1.38), lineHeight: s.lineHeight * 1.08, color: s.color, textAlign: s.align === 'justify' ? 'left' : s.align, textIndent: b.type === 'p' ? s.indent * 3 : 0, marginTop: b.type.startsWith('h') ? Math.min(18, s.spaceBefore * 0.5) : 0 } : undefined} />
         )}
+      {gen && <ImageGenDialog title="Image pour le livre" initialAspect="4:3" initialPrompt={b.type === 'p' ? b.text.slice(0, 300) : ''} onClose={() => setGen(false)} onPick={(d) => onInsert('image', { src: d, widthPct: 100 })} />}
       {(comment || b.comment) && <div className="mb-1 mt-1 flex items-center gap-2 rounded-md border border-[#ecd9ad] bg-[#fdf6e4] px-2 py-1 font-sans"><MessageSquare size={12} className="shrink-0 text-[#b8893a]" /><input className="w-full bg-transparent text-[12px] text-[#5c4a22] outline-none placeholder:text-[#c9b48a]" placeholder="Annotation pour l’équipe…" value={b.comment || ''} onChange={(e) => onChange({ comment: e.target.value })} /></div>}
     </div>
   )

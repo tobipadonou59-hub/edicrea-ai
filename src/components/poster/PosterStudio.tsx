@@ -5,6 +5,8 @@ import { GRAPHIC_STYLES, POSTER_FORMATS, POSTER_KINDS } from '../../lib/defaults
 import { readAsDataURL } from '../../lib/importers'
 import { aiReady, askClaude, extractJSON } from '../../lib/ai'
 import { aiConcepts, buildPoster, localConcepts, proposalsFrom } from '../../graphics/templates'
+import { generateImages, imageReady, providerLabel, coverArtPrompt } from '../../lib/imageGen'
+import ImageGenDialog from '../ImageGenDialog'
 import type { PosterData } from '../../lib/types'
 import { EmptyState, Field, Spinner, Toggle, FileButton } from '../ui'
 import GraphicEditor from '../editor/GraphicEditor'
@@ -18,6 +20,8 @@ export default function PosterStudio() {
   const [busy, setBusy] = useState('')
   const [useAI, setUseAI] = useState(aiReady())
   const [svg, setSvg] = useState(true)
+  const [genArt, setGenArt] = useState(!!imageReady())
+  const [artPrompt, setArtPrompt] = useState(false)
   const [editing, setEditing] = useState(!!poster.design)
   const setB = (p: Partial<PosterData['brief']>) => update((pp) => { Object.assign(pp.poster!.brief, p) }, { undoable: false })
 
@@ -49,8 +53,23 @@ export default function PosterStudio() {
         setBusy('L’IA imagine 4 concepts d’affiche…')
         concepts = await aiConcepts('poster', `Type : ${brief.brief.kind}\nDescription : ${brief.brief.description}\nTitre : ${brief.brief.title}\nSous-titre : ${brief.brief.subtitle}\nDate : ${brief.brief.date}\nLieu : ${brief.brief.place}\nContact : ${brief.brief.contact}\nStyle : ${brief.brief.style}\nCouleurs : ${brief.brief.colors || 'libre'}\nFormat : ${POSTER_FORMATS[brief.format].label}\nPhoto fournie : ${brief.brief.images.length ? 'oui' : 'non'}`, svg && !brief.brief.images.length)
       }
+      let arts: (string | null)[] = concepts.map(() => null)
+      const prov = imageReady()
+      if (genArt && prov && !brief.brief.images.length) {
+        setBusy(`${providerLabel(prov)} crée les visuels des 4 affiches… (30 à 60 s)`)
+        const f = POSTER_FORMATS[brief.format]
+        const ratio = f.w / f.h
+        const aspect = ratio > 1.4 ? '16:9' : ratio > 1.1 ? '4:3' : ratio > 0.9 ? '1:1' : ratio > 0.62 ? '3:4' : '9:16'
+        arts = await Promise.all(concepts.map(async (c) => {
+          if (c.layout === 'typo') return null
+          try {
+            const [img] = await generateImages({ prompt: coverArtPrompt({ kind: 'poster', title: brief.brief.title || brief.brief.description, subtitle: brief.brief.subtitle, category: brief.brief.kind, audience: 'grand public', style: brief.brief.style, colors: brief.brief.colors, instructions: brief.brief.description, concept: `${c.name} — ${c.concept}`, palette: c.palette.slice(0, 4) }), aspect, n: 1, jpeg: true })
+            return img
+          } catch (e) { notify((e as Error).message); return null }
+        }))
+      }
       setBusy('Composition des propositions…')
-      const props = await proposalsFrom(concepts, (c, i) => buildPoster(brief, c, i + 3))
+      const props = await proposalsFrom(concepts, (c, i) => buildPoster(arts[i] ? { ...brief, brief: { ...brief.brief, images: [arts[i]!] } } : brief, c, i + 3))
       update((p) => { p.poster!.proposals = props.map((x) => ({ id: x.id, name: x.name, concept: x.concept, json: x.json, thumb: x.thumb }))})
       notify('4 propositions générées.')
     } catch (e) { notify('Erreur : ' + (e as Error).message) } finally { setBusy('') }
@@ -77,6 +96,7 @@ export default function PosterStudio() {
 
   return (
     <div className="h-full overflow-y-auto">
+      {artPrompt && <ImageGenDialog title="Visuel de l’affiche" initialAspect="3:4" initialPrompt={B.description} onClose={() => setArtPrompt(false)} onPick={(d) => setB({ images: [...B.images, d] })} />}
       <div className="mx-auto grid max-w-[1320px] gap-6 p-4 md:p-8 lg:grid-cols-[380px_1fr]">
         <div className="card h-fit space-y-3 overflow-hidden p-4 pt-0">
           <div className="panel-title -mx-4 mb-1"><FileText size={14} /> Brief de l’affiche</div>
@@ -100,6 +120,7 @@ export default function PosterStudio() {
             <div className="flex flex-wrap gap-2">
               {B.images.map((src, i) => <div key={i} className="relative"><img src={src} className="h-16 w-16 rounded object-cover" /><button className="absolute -right-1 -top-1 rounded-full bg-black/70 p-0.5 text-white" onClick={() => setB({ images: B.images.filter((_, j) => j !== i) })}><X size={12} /></button></div>)}
               <FileButton accept="image/*" multiple className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-line hover:border-accent" onFiles={async (f) => setB({ images: [...B.images, ...(await Promise.all(f.map(readAsDataURL)))] })}><ImagePlus size={18} /></FileButton>
+              <button className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-accent/50 text-[10px] font-medium text-accent hover:bg-accent-soft" data-tip="Générer un visuel (Nano Banana / GPT Image)" onClick={() => setArtPrompt(true)}><Sparkles size={16} />IA</button>
             </div>
           </div>
         </div>
@@ -113,7 +134,8 @@ export default function PosterStudio() {
                 <p className="mt-0.5 text-[12.5px] text-muted">Jusqu’à 4 propositions à partir de votre description, toutes entièrement personnalisables.</p>
               </div>
               <div className="min-w-56 rounded-lg border border-line bg-panel2 px-3 py-1"><Toggle label="Direction artistique IA" checked={useAI && aiReady()} onChange={setUseAI} />
-                {useAI && aiReady() && !B.images.length && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}</div>
+                {imageReady() ? !B.images.length && <Toggle label={`Visuels ${providerLabel(imageReady()!)}`} hint="Une image générée par affiche" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer Nano Banana / GPT Image</button>}
+                {useAI && aiReady() && !B.images.length && !(genArt && imageReady()) && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}</div>
               {busy ? <Spinner label={busy} /> : <button className="btn-accent h-9 px-4" onClick={generate}><Sparkles size={15} /> {poster.proposals.length ? 'Régénérer' : 'Générer 4 propositions'}</button>}
             </div>
           </div>

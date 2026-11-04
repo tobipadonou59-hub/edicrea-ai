@@ -5,6 +5,8 @@ import { BOOK_CATEGORIES, GRAPHIC_STYLES } from '../../lib/defaults'
 import { readAsDataURL } from '../../lib/importers'
 import { aiReady, askClaude } from '../../lib/ai'
 import { aiConcepts, buildCover, localConcepts, proposalsFrom, coverGeometry } from '../../graphics/templates'
+import { generateImages, imageReady, providerLabel, coverArtPrompt } from '../../lib/imageGen'
+import ImageGenDialog from '../ImageGenDialog'
 import type { CoverInfo } from '../../lib/types'
 import { EmptyState, Field, Num, Spinner, Toggle, FileButton } from '../ui'
 import GraphicEditor from '../editor/GraphicEditor'
@@ -22,6 +24,8 @@ export default function CoverStep({ next }: { next: () => void }) {
   const [busy, setBusy] = useState('')
   const [useAI, setUseAI] = useState(aiReady())
   const [svg, setSvg] = useState(true)
+  const [genArt, setGenArt] = useState(!!imageReady())
+  const [artPrompt, setArtPrompt] = useState(false)
   const [editing, setEditing] = useState(!!cover.design)
   const setInfo = (p: Partial<CoverInfo>) => update((pp) => { Object.assign(pp.book!.cover.info, p) }, { undoable: false })
   const geo = coverGeometry(book.layout.width, book.layout.height, pageCount, info.paperThickness, book.layout.bleed)
@@ -35,8 +39,21 @@ export default function CoverStep({ next }: { next: () => void }) {
         const excerpt = book.blocks.filter((b) => b.type === 'p').slice(0, 12).map((b) => b.text).join(' ').slice(0, 2500)
         concepts = await aiConcepts('cover', `Titre : ${info.title}\nSous-titre : ${info.subtitle}\nAuteur : ${info.author}\nCatégorie : ${info.category}\nPublic : ${info.audience}\nStyle souhaité : ${info.style}\nCouleurs préférées : ${info.colors || 'libre'}\nConsignes : ${info.instructions || 'aucune'}\nPhoto fournie : ${info.images.length ? 'oui (sera utilisée en visuel)' : 'non'}\nExtrait du livre : ${excerpt}`, svg && !info.images.length)
       }
+      let arts: (string | null)[] = concepts.map(() => null)
+      const prov = imageReady()
+      if (genArt && prov && !info.images.length) {
+        setBusy(`${providerLabel(prov)} peint les illustrations des 4 couvertures… (30 à 60 s)`)
+        const excerpt = book.blocks.filter((b) => b.type === 'p').slice(0, 8).map((b) => b.text).join(' ')
+        arts = await Promise.all(concepts.map(async (c) => {
+          if (c.layout === 'typo') return null
+          try {
+            const [img] = await generateImages({ prompt: coverArtPrompt({ ...info, concept: `${c.name} — ${c.concept}`, palette: c.palette.slice(0, 4), excerpt }), aspect: c.layout === 'photo' ? '2:3' : '3:4', n: 1, jpeg: true })
+            return img
+          } catch (e) { notify((e as Error).message); return null }
+        }))
+      }
       setBusy('Composition des 4 propositions…')
-      const props = await proposalsFrom(concepts, (c, i) => buildCover(info, c, book.layout.width, book.layout.height, pageCount, book.layout.bleed, i + Date.now() % 97))
+      const props = await proposalsFrom(concepts, (c, i) => buildCover(arts[i] ? { ...info, images: [arts[i]!] } : info, c, book.layout.width, book.layout.height, pageCount, book.layout.bleed, i + Date.now() % 97))
       update((p) => { p.book!.cover.proposals = props.map(({ doc: _d, ...pr }) => pr); p.book!.cover.selected = -1 })
       notify('4 propositions générées : choisissez-en une pour la personnaliser.')
     } catch (e) { notify('Erreur : ' + (e as Error).message) } finally { setBusy('') }
@@ -61,6 +78,8 @@ export default function CoverStep({ next }: { next: () => void }) {
     } catch (e) { notify('IA : ' + (e as Error).message) } finally { setBusy('') }
   }
 
+  const artDialog = artPrompt && <ImageGenDialog title="Illustration de couverture" initialAspect="2:3" initialPrompt={info.title ? coverArtPrompt({ ...info }).split('\n').slice(0, 4).join(' ') : ''} onClose={() => setArtPrompt(false)} onPick={(d) => setInfo({ images: [...info.images, d] })} />
+
   if (editing && cover.design) {
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -80,6 +99,7 @@ export default function CoverStep({ next }: { next: () => void }) {
 
   return (
     <div className="h-full overflow-y-auto">
+      {artDialog}
       <div className="mx-auto grid max-w-[1320px] gap-6 p-4 md:p-8 lg:grid-cols-[360px_1fr]">
         <div className="card h-fit space-y-3 overflow-hidden p-4 pt-0">
           <div className="panel-title -mx-4 mb-1"><BookMarked size={14} /> Informations de couverture</div>
@@ -98,6 +118,7 @@ export default function CoverStep({ next }: { next: () => void }) {
             <div className="flex flex-wrap gap-2">
               {info.images.map((src, i) => <div key={i} className="relative"><img src={src} className="h-16 w-16 rounded object-cover" /><button className="absolute -right-1 -top-1 rounded-full bg-black/70 p-0.5 text-white" onClick={() => setInfo({ images: info.images.filter((_, j) => j !== i) })}><X size={12} /></button></div>)}
               <FileButton accept="image/*" multiple className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-line hover:border-accent" onFiles={async (f) => setInfo({ images: [...info.images, ...(await Promise.all(f.map(readAsDataURL)))] })}><ImagePlus size={18} /></FileButton>
+              <button className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-accent/50 text-[10px] font-medium text-accent hover:bg-accent-soft" data-tip="Générer une illustration (Nano Banana / GPT Image)" onClick={() => setArtPrompt(true)}><Sparkles size={16} />IA</button>
             </div>
           </div>
           <Field label="Texte de 4ᵉ de couverture">
@@ -123,11 +144,12 @@ export default function CoverStep({ next }: { next: () => void }) {
                 <p className="mt-0.5 text-[12.5px] text-muted">4 concepts visuellement distincts : 1ʳᵉ, dos et 4ᵉ, prêts pour l’impression et le numérique.</p>
               </div>
               <div className="min-w-56 rounded-lg border border-line bg-panel2 px-3 py-1"><Toggle label="Direction artistique IA" checked={useAI && aiReady()} onChange={(v) => setUseAI(v)} />
-                {useAI && aiReady() && !info.images.length && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}</div>
+                {imageReady() ? !info.images.length && <Toggle label={`Illustrations ${providerLabel(imageReady()!)}`} hint="Une image générée par couverture" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer Nano Banana / GPT Image</button>}
+                {useAI && aiReady() && !info.images.length && !(genArt && imageReady()) && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}</div>
               {busy ? <Spinner label={busy} /> : <button className="btn-accent h-9 px-4" onClick={generate}><Sparkles size={15} /> {cover.proposals.length ? 'Régénérer' : 'Générer 4 propositions'}</button>}
             </div>
           </div>
-          {!aiReady() && <div className="flex items-start gap-2 rounded-lg border border-line bg-panel2 px-3 py-2 text-[12px] text-muted"><Info size={14} className="mt-0.5 shrink-0 text-subtle" />Sans clé API, les propositions sont composées par le moteur local (palettes, typographies et motifs adaptés à la catégorie). Avec Claude : direction artistique et illustrations générées.</div>}
+          {!aiReady() && !imageReady() && <div className="flex items-start gap-2 rounded-lg border border-line bg-panel2 px-3 py-2 text-[12px] text-muted"><Info size={14} className="mt-0.5 shrink-0 text-subtle" />Sans clé API, les propositions sont composées par le moteur local (palettes, typographies et motifs adaptés à la catégorie). Avec Claude : direction artistique et illustrations générées.</div>}
           {cover.proposals.length > 0 ? (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {cover.proposals.map((p, i) => (
