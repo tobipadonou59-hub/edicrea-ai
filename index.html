@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Création graphique, mise en page et édition assistées par IA : livres, couvertures, affiches." />
-    <meta name="theme-color" content="#0c0e11" />
+    <meta name="theme-color" content="#01261d" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,8 +15,49 @@
     <title>EDICREA AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Lora:ital,wght@0,400;0,700;1,400&family=Oswald:wght@400;700&family=Bebas+Neue&family=Merriweather:wght@400;700&family=Poppins:wght@400;600;800&family=Abril+Fatface&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+    <style>
+      /* Écran d'ouverture : affiché instantanément, avant le chargement de l'application */
+      #splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+        background: radial-gradient(ellipse at 50% 45%, #04352a 0%, #01261d 45%, #001a13 100%); transition: opacity .55s ease, visibility .55s; cursor: pointer }
+      #splash.out { opacity: 0; visibility: hidden }
+      #splash svg { width: min(46vw, 230px); height: auto; overflow: visible }
+      #splash .draw { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1.25s cubic-bezier(.65,0,.35,1) forwards }
+      #splash .d2 { animation-delay: .25s } #splash .d3 { animation-delay: .45s; animation-duration: 1s }
+      #splash .glow { filter: url(#sp-glow); animation: sp-draw 1.25s cubic-bezier(.65,0,.35,1) forwards, sp-pulse 2.4s ease-in-out 1.3s infinite }
+      #splash .word { font: 700 clamp(22px, 5.4vw, 30px)/1 Inter, system-ui, sans-serif; letter-spacing: .34em; color: #e9fff3; opacity: 0; transform: translateY(10px); animation: sp-in .6s ease 1.15s forwards; padding-left: .34em }
+      #splash .word b { color: #2cf28f; font-weight: 700 }
+      #splash .tag { font: 500 12px/1 Inter, system-ui, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: #5fbf92; opacity: 0; animation: sp-in .6s ease 1.45s forwards; margin-top: -14px; padding-left: .28em }
+      #splash .bar { width: 120px; height: 2px; border-radius: 2px; background: rgba(44,242,143,.15); overflow: hidden; opacity: 0; animation: sp-in .4s ease 1.6s forwards }
+      #splash .bar i { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, transparent, #2cf28f, transparent); animation: sp-load 1.1s ease-in-out infinite }
+      @keyframes sp-draw { to { stroke-dashoffset: 0 } }
+      @keyframes sp-in { to { opacity: 1; transform: none } }
+      @keyframes sp-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .82 } }
+      @keyframes sp-load { from { transform: translateX(-110%) } to { transform: translateX(260%) } }
+      @media (prefers-reduced-motion: reduce) { #splash * { animation-duration: .01s !important; animation-delay: 0s !important } }
+    </style>
   </head>
   <body>
+    <div id="splash" role="img" aria-label="EDICREA AI">
+      <svg viewBox="150 440 420 420" aria-hidden="true">
+        <defs>
+          <linearGradient id="sp-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0f9e5e"/><stop offset=".55" stop-color="#19d977"/><stop offset="1" stop-color="#3dff9a"/></linearGradient>
+          <linearGradient id="sp-fade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0d7a4b" stop-opacity="0"/><stop offset=".35" stop-color="#0f8a55"/><stop offset="1" stop-color="#14a565"/></linearGradient>
+          <filter id="sp-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- ombre décalée -->
+        <path class="draw d3" pathLength="1" d="M 360 482 A 172 172 0 0 1 360 826" stroke="#0a5a37" stroke-width="30" opacity=".9"/>
+        <!-- traits arrière (haut et bas) -->
+        <path class="draw" pathLength="1" d="M 206 482 L 330 480" stroke="#0e8a52" stroke-width="22"/>
+        <path class="draw" pathLength="1" d="M 206 808 L 330 812" stroke="#0e8a52" stroke-width="22"/>
+        <!-- arc intérieur, fondu vers la gauche -->
+        <path class="draw d2" pathLength="1" d="M 318 563 L 382 563 A 91 91 0 0 1 382 745 L 318 745" stroke="url(#sp-fade)" stroke-width="22"/>
+        <!-- trait principal lumineux -->
+        <path class="draw glow" pathLength="1" d="M 206 482 L 191 562 L 222 563 C 262 561 290 492 332 490 A 164 164 0 0 1 332 818 C 290 816 262 735 222 733 L 191 732 L 206 810" stroke="url(#sp-g)" stroke-width="28"/>
+      </svg>
+      <div class="word">EDICREA <b>AI</b></div>
+      <div class="tag">Studio de création</div>
+      <div class="bar"><i></i></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

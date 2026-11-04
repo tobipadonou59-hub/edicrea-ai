@@ -1,5 +1,5 @@
 // Service worker EDICREA AI : fonctionnement hors-ligne et chargement rapide.
-const VERSION = 'edicrea-v5'
+const VERSION = 'edicrea-v6'
 const CORE = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png']
 
 const FONTS = ['Serif', 'Sans', 'Mono'].flatMap((f) => ['Regular', 'Bold', 'Italic', 'BoldItalic'].map((s) => `/fonts/Liberation${f}-${s}.ttf`))
