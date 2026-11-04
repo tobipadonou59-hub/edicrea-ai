@@ -46,7 +46,11 @@ export default function App() {
     if (q === 'book' || q === 'poster' || q === 'design') { history.replaceState(null, '', '/'); void s.createProject(q, q === 'book' ? 'Nouveau livre' : q === 'poster' ? 'Nouvelle affiche' : 'Nouvelle création') }
   }, [s.ready]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void s.init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { document.documentElement.classList.toggle('dark', s.settings.theme === 'dark'); document.documentElement.dataset.theme = s.settings.theme }, [s.settings.theme])
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', s.settings.theme === 'dark'); document.documentElement.dataset.theme = s.settings.theme
+    // couleur de la barre d'état (téléphone) assortie au haut de l'interface
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', s.settings.theme === 'dark' ? '#13161a' : '#ffffff')
+  }, [s.settings.theme])
   useEffect(() => { s.assets.filter((a) => a.type === 'font').forEach((a) => { if (![...document.fonts].some((f) => f.family === a.name)) { const ff = new FontFace(a.name, `url(${a.data})`); void ff.load().then(() => document.fonts.add(ff)).catch(() => null) } }) }, [s.assets])
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
