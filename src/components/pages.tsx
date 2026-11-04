@@ -481,7 +481,7 @@ function ImageSettings() {
           {saved ? <span className="chip !text-ok"><Check size={11} /> Configuré</span> : <span className="chip">Non configuré</span>}
         </div>
         <Field label="Clé API" hint={`Obtenez une clé sur ${url}`}>
-          <div className="flex gap-2"><input className="input font-mono" type="password" value={keyVal} onChange={(e) => setKey(e.target.value)} placeholder={id === 'gemini' ? 'AIza…' : 'sk-…'} />
+          <div className="flex gap-2"><input className="input font-mono" type="password" value={keyVal} onChange={(e) => setKey(e.target.value)} placeholder={id === 'gemini' ? 'Collez votre clé Google (AIza… ou AQ.…)' : 'Collez votre clé OpenAI (sk-…)'} />
             <button className="btn-accent" onClick={() => { setSettings(id === 'gemini' ? { geminiKey: keyVal.trim(), imageProvider: keyVal.trim() ? 'gemini' : settings.imageProvider } : { openaiKey: keyVal.trim(), imageProvider: keyVal.trim() && !settings.geminiKey ? 'openai' : settings.imageProvider }); notify(keyVal.trim() ? `${name} activé.` : 'Clé supprimée.') }}>Enregistrer</button></div>
         </Field>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
