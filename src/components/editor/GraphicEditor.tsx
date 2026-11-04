@@ -100,7 +100,8 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
   const [arcOpen, setArcOpen] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
   const [docSize, setDocSize] = useState({ w: doc.width, h: doc.height })
-  const [rulers, setRulers] = useState(true)
+  const [rulers, setRulers] = useState(() => window.innerWidth >= 1024)
+  const [sheet, setSheet] = useState(false)
   const [rulerTick, setRulerTick] = useState(0)
   const [sizeOpen, setSizeOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<'props' | 'layers'>('props')
@@ -696,11 +697,11 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
       {/* Barre d'outils supérieure */}
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line bg-panel px-2">
+      <div className="scroll-thin flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-panel px-2">
         <button className="btn-icon" data-tip="Annuler (Ctrl Z)" onClick={undo} disabled={hist.current.i <= 0}><Undo2 size={16} /></button>
         <button className="btn-icon" data-tip="Rétablir (Ctrl Y)" onClick={redo} disabled={hist.current.i >= hist.current.stack.length - 1}><Redo2 size={16} /></button>
         <span className="divider-v" />
-        <Menu className="btn-ghost !h-7 gap-1 text-[12.5px]" label={<><ImageIcon size={15} /> Insérer <ChevronDown size={12} className="text-subtle" /></>}>
+        <Menu className="btn-ghost !h-7 gap-1 text-[12.5px]" label={<><ImageIcon size={15} /><span className="max-md:hidden">Insérer</span> <ChevronDown size={12} className="text-subtle" /></>}>
           {(close) => <>
             <FileButton accept="image/*" className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] hover:bg-panel3" onFiles={async (f) => { close(); for (const x of f) { const url = await readAsDataURL(x); await addImage(url, x.name); store.addAsset({ name: x.name, type: 'image', data: url }) } }}><ImageIcon size={14} className="text-muted" /> Image ou logo…</FileButton>
             {store.assets.filter((x) => x.type === 'image' || x.type === 'logo').length > 0 && <>
@@ -712,7 +713,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
             <MenuItem icon={Spline} onClick={() => { close(); setArcOpen(true) }}>Texte sur tracé</MenuItem>
           </>}
         </Menu>
-        <Menu className="btn-ghost !h-7 gap-1 text-[12.5px]" label={<><AlignHorizontalJustifyCenter size={15} /> Disposition <ChevronDown size={12} className="text-subtle" /></>}>
+        <Menu className="btn-ghost !h-7 gap-1 text-[12.5px]" label={<><AlignHorizontalJustifyCenter size={15} /><span className="max-md:hidden">Disposition</span> <ChevronDown size={12} className="text-subtle" /></>}>
           {(close) => <>
             <div className="eyebrow px-2.5 pb-1 pt-1.5">Aligner {sel.length > 1 ? 'la sélection' : 'sur la page'}</div>
             <div className="grid grid-cols-6 gap-0.5 px-1.5 pb-1.5">
@@ -738,8 +739,8 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
         <button className={`btn-icon ${guidesOn ? 'on' : ''}`} data-tip="Repères (coupe, plis)" onClick={() => toggleGuides(!guidesOn)}><Frame size={16} /></button>
         <button className={`btn-icon ${rulers ? 'on' : ''}`} data-tip="Règles" onClick={() => setRulers(!rulers)}><Ruler size={16} /></button>
         <div className="flex-1" />
-        {sel.length > 0 && <span className="chip mr-1 max-w-56 truncate">{sel.length > 1 ? `${sel.length} objets` : (a?.name || (a ? typeFr(a) : ''))}</span>}
-        <Menu align="right" className={`btn !h-8 ${aiBusy ? 'opacity-70' : ''}`} label={<>{aiBusy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" /> : <Wand2 size={15} className="text-accent" />} IA design</>}>
+        {sel.length > 0 && <span className="chip mr-1 max-w-56 truncate max-md:hidden">{sel.length > 1 ? `${sel.length} objets` : (a?.name || (a ? typeFr(a) : ''))}</span>}
+        <Menu align="right" className={`btn !h-8 ${aiBusy ? 'opacity-70' : ''}`} label={<>{aiBusy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" /> : <Wand2 size={15} className="text-accent" />}<span className="max-md:hidden">IA design</span></>}>
           {(close) => (
             <div className="w-80 p-1">
               <div className="eyebrow px-2.5 pb-1 pt-1.5">{sel.length ? 'Sur la sélection' : 'Sur tout le document'}</div>
@@ -755,13 +756,14 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
             </div>
           )}
         </Menu>
-        <button className="btn" data-tip="Enregistrer comme modèle réutilisable" onClick={saveTemplate}><Save size={15} /> Modèle</button>
-        <button className="btn-accent" onClick={() => setExportOpen(true)}><Download size={15} /> Exporter</button>
+        <button className="btn max-md:hidden" data-tip="Enregistrer comme modèle réutilisable" onClick={saveTemplate}><Save size={15} /> Modèle</button>
+        <button className={`btn lg:hidden ${sheet ? '!border-accent/50 !bg-accent-soft !text-accent' : ''}`} onClick={() => setSheet(!sheet)}><SlidersHorizontal size={15} /><span className="max-sm:hidden">Propriétés</span></button>
+        <button className="btn-accent" onClick={() => setExportOpen(true)}><Download size={15} /><span className="max-sm:hidden">Exporter</span></button>
       </div>
 
       <div className="flex min-h-0 flex-1">
         {/* Barre d'outils latérale */}
-        <div className="flex w-[46px] shrink-0 flex-col items-center border-r border-line bg-panel py-1.5">
+        <div className="scroll-thin flex w-[46px] shrink-0 flex-col items-center overflow-y-auto border-r border-line bg-panel py-1.5">
           {toolGroups.map((g, gi) => (
             <div key={gi} className={`flex flex-col items-center gap-0.5 py-1 ${gi ? 'border-t border-line' : ''}`}>
               {g.map(([t, Icon, label, key]) => (
@@ -803,10 +805,10 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
           <div className="flex h-7 shrink-0 items-center gap-3 overflow-hidden whitespace-nowrap border-t border-line bg-panel px-3 text-[11.5px] text-muted">
             <span className="flex items-center gap-1.5"><Frame size={12} />{sizeLabel}{doc.bleedMm ? ` · fonds perdus ${doc.bleedMm} mm` : ''}</span>
             <span className="divider-v !h-3.5" />
-            <CursorReadout cb={cursorCb} unit={unit} toUnit={toUnit} />
+            <span className="max-md:hidden"><CursorReadout cb={cursorCb} unit={unit} toUnit={toUnit} /></span>
             {a && sel.length === 1 && <><span className="divider-v !h-3.5" /><span className="tabular-nums">L {Math.round(toUnit(a.getScaledWidth()))} × H {Math.round(toUnit(a.getScaledHeight()))} {unit}</span></>}
             <span className="divider-v !h-3.5" />
-            <span className="min-w-0 flex-1 truncate">{TOOL_HINT[tool]}</span>
+            <span className="min-w-0 flex-1 truncate max-md:hidden">{TOOL_HINT[tool]}</span>
             <span className="tabular-nums">{objects.length} calque(s)</span>
             <span className="divider-v !h-3.5" />
             <button className="btn-icon !h-5 !w-5" onClick={() => applyZoom(zoom / 1.2)}><ZoomOut size={13} /></button>
@@ -821,7 +823,9 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
         </div>
 
         {/* Inspecteur */}
-        <div className="flex w-[288px] shrink-0 flex-col border-l border-line bg-panel">
+        {sheet && <div className="anim-fade fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSheet(false)} />}
+        <div className={`flex w-[288px] shrink-0 flex-col border-l border-line bg-panel max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:h-[62vh] max-lg:w-full max-lg:rounded-t-2xl max-lg:border-l-0 max-lg:border-t max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-12px_40px_rgba(0,0,0,.35)] ${sheet ? '' : 'max-lg:hidden'}`}>
+          <div className="flex justify-center pt-2 lg:hidden"><button className="h-1.5 w-10 rounded-full bg-line2" aria-label="Fermer" onClick={() => setSheet(false)} /></div>
           <Tabs value={panelTab} onChange={setPanelTab} tabs={[{ v: 'props', label: 'Propriétés', icon: SlidersHorizontal }, { v: 'layers', label: 'Calques', icon: Layers, badge: objects.length }]} />
           {panelTab === 'props' ? (
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">

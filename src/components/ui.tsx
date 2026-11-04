@@ -9,7 +9,7 @@ export function Modal({ title, subtitle, onClose, children, wide, footer, icon: 
   }, [onClose])
   return (
     <div className="anim-fade fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`anim-pop flex max-h-[88vh] w-full flex-col overflow-hidden rounded-xl border border-line bg-panel ${wide ? 'max-w-5xl' : 'max-w-lg'}`} style={{ boxShadow: 'var(--shadow-lg)' }}>
+      <div className={`anim-pop flex max-h-[88vh] w-full flex-col overflow-hidden rounded-xl border border-line bg-panel max-sm:max-h-[92vh] ${wide ? 'max-w-5xl' : 'max-w-lg'}`} style={{ boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-start gap-3 border-b border-line px-5 py-4">
           {Icon && <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"><Icon size={16} /></span>}
           <div className="flex-1">
@@ -170,7 +170,7 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: strin
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
-        <h1 className="text-[24px] font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-[21px] font-semibold tracking-tight md:text-[24px]">{title}</h1>
         {subtitle && <p className="mt-1 text-[13.5px] text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

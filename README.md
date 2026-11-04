@@ -13,6 +13,15 @@ npm run build      # version de production dans dist/
 
 L'application fonctionne entièrement hors-ligne. Pour activer l'IA, renseignez une clé API Anthropic dans **Paramètres** (modèle par défaut : `claude-opus-5-5`).
 
+## Application téléphone et ordinateur
+
+EDICREA AI est une application web installable (PWA) : depuis l'adresse du site, elle s'installe sur Android, iPhone/iPad, Windows et macOS (bouton « Installer l'application » dans le menu). Elle s'ouvre alors en plein écran avec sa propre icône et fonctionne hors-ligne ; l'IA nécessite une connexion.
+
+- `public/manifest.webmanifest` : nom, icônes, raccourcis.
+- `public/sw.js` : service worker (cache hors-ligne, mises à jour automatiques).
+- `public/brand/logo-01.svg` … `logo-10.svg` : propositions de logo.
+- `node scripts/make-icons.cjs 03` : régénère toutes les icônes à partir du logo choisi.
+
 ## Modules
 
 | Module | Contenu |

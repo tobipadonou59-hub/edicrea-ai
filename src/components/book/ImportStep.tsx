@@ -83,7 +83,7 @@ export default function ImportStep({ next }: { next: () => void }) {
   const formats = [['DOCX', 'Word'], ['PDF', 'texte ou scanné'], ['TXT · MD', 'texte brut'], ['PNG · JPG', 'OCR IA']]
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-[1180px] gap-6 p-8 lg:grid-cols-[1fr_340px]">
+      <div className="mx-auto grid max-w-[1180px] gap-6 p-4 md:p-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-5">
           <div>
             <div className="eyebrow mb-1">Étape 1 sur 6</div>

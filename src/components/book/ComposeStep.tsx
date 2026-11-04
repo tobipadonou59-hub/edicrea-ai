@@ -69,9 +69,9 @@ export default function ComposeStep({ next }: { next: () => void }) {
   const setStyle = (patch: Partial<TextStyle>) => update((p) => { Object.assign(p.book!.styles[styleKey], patch) })
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       {/* Plan */}
-      <div className="flex w-64 shrink-0 flex-col border-r border-line bg-panel">
+      <div className="flex w-full shrink-0 flex-col border-line bg-panel max-lg:max-h-72 max-lg:border-b lg:w-64 lg:border-r">
         <div className="panel-title justify-between"><span className="flex items-center gap-2"><ListTree size={14} /> Plan</span><span className="text-[11px] font-normal text-subtle">{sections.length} section(s)</span></div>
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-2">
           {sections.map((s, i) => (
@@ -89,8 +89,8 @@ export default function ComposeStep({ next }: { next: () => void }) {
       </div>
 
       {/* Blocs */}
-      <div className="canvas-bg min-w-0 flex-1 overflow-y-auto px-6 py-8">
-        <div className="paper-shadow mx-auto max-w-[760px] rounded-[2px] bg-white py-12 pl-24 pr-14 text-[#1d1d1f]">
+      <div className="canvas-bg min-w-0 flex-1 overflow-y-auto px-3 py-5 max-lg:min-h-[80vh] md:px-6 md:py-8">
+        <div className="paper-shadow mx-auto max-w-[760px] rounded-[2px] bg-white py-8 pl-14 pr-4 text-[#1d1d1f] md:py-12 md:pl-24 md:pr-14">
           {book.blocks.slice(sec.start, sec.end + 1).map((b, k) => {
             const i = sec.start + k
             return <BlockEditor key={b.id} b={b} styles={book.styles}
@@ -105,7 +105,7 @@ export default function ComposeStep({ next }: { next: () => void }) {
       </div>
 
       {/* Styles */}
-      <div className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
+      <div className="flex w-full shrink-0 flex-col border-line bg-panel max-lg:border-t lg:w-80 lg:border-l">
         <div className="panel-title"><Type size={14} /> Styles de paragraphe</div>
         <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           <div className="flex flex-wrap gap-1">{STYLE_KEYS.map((k) => <button key={k} onClick={() => setStyleKey(k)} className={`chip ${styleKey === k ? '!border-accent/60 !bg-accent-soft !text-ink' : ''}`}>{TYPE_LABEL[k]}</button>)}</div>

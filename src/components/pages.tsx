@@ -14,7 +14,7 @@ const KIND: Record<ProjectKind, { label: string; icon: typeof BookOpen; color: s
   design: { label: 'Création', icon: PenTool, color: '#b893f0', grad: 'from-[#2c1d48] to-[#160f26]' },
 }
 const ago = (t: number) => { const d = (Date.now() - t) / 1000; return d < 60 ? 'à l’instant' : d < 3600 ? `il y a ${Math.round(d / 60)} min` : d < 86400 ? `il y a ${Math.round(d / 3600)} h` : new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }
-const wrap = 'mx-auto w-full max-w-[1320px] px-8 py-8'
+const wrap = 'mx-auto w-full max-w-[1320px] px-4 py-6 md:px-8 md:py-8'
 
 function ProjectMenu({ m }: { m: ProjectMeta }) {
   const { deleteProject, duplicateProject, openProject } = useStore()
@@ -272,7 +272,7 @@ export function ProjectList({ filter }: { filter: 'book' | 'poster' | 'cover' | 
     <div className={wrap}>
       <PageHeader eyebrow="Espace de travail" title={meta[0]} subtitle={meta[1]} actions={<button className="btn-accent" onClick={() => go({ name: 'new' })}><Plus size={15} /> Nouveau</button>} />
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="relative w-72"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" /><input className="input !pl-8" placeholder="Rechercher un projet…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="relative w-full sm:w-72"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" /><input className="input !pl-8" placeholder="Rechercher un projet…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         {clients.length > 0 && <select className="input !w-48" value={client} onChange={(e) => setClient(e.target.value)}><option value="">Tous les clients</option>{clients.map((c) => <option key={c}>{c}</option>)}</select>}
         <select className="input !w-48" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="recent">Modifiés récemment</option><option value="created">Créés récemment</option><option value="name">Nom (A → Z)</option></select>
         <div className="flex-1" />
@@ -282,8 +282,8 @@ export function ProjectList({ filter }: { filter: 'book' | 'poster' | 'cover' | 
       {!list.length ? <EmptyState icon={filter === 'poster' ? ImageIcon : filter === 'design' ? PenTool : BookOpen} title="Aucun projet" text={q ? 'Aucun résultat pour cette recherche.' : 'Créez votre premier projet pour le voir apparaître ici.'} action={<button className="btn-accent" onClick={() => go({ name: 'new' })}><Plus size={15} /> Nouveau projet</button>} />
         : mode === 'grid' ? <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{list.map((m) => <ProjectCard key={m.id} m={m} />)}</div>
           : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-[13px]">
+            <div className="card overflow-x-auto">
+              <table className="w-full min-w-[640px] text-[13px]">
                 <thead className="bg-panel2 text-left text-[11px] uppercase tracking-wider text-subtle"><tr><th className="px-4 py-2.5 font-semibold">Nom</th><th className="px-4 py-2.5 font-semibold">Type</th><th className="px-4 py-2.5 font-semibold">Client</th><th className="px-4 py-2.5 font-semibold">Avancement</th><th className="px-4 py-2.5 font-semibold">Modifié</th><th /></tr></thead>
                 <tbody className="divide-y divide-line">
                   {list.map((m) => { const K = KIND[m.kind]; return (

@@ -72,7 +72,7 @@ export default function FinalizeStep() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-[1320px] gap-6 p-8 lg:grid-cols-[1fr_400px]">
+      <div className="mx-auto grid max-w-[1320px] gap-6 p-4 md:p-8 lg:grid-cols-[1fr_400px]">
         <div className="space-y-6">
           {/* Prévisualisation réaliste */}
           <div className="card overflow-hidden">

@@ -125,7 +125,7 @@ export default function Assistant() {
   if (!open) return null
   const ctxLabel = (() => { const st = useStore.getState(); const p = st.project; if (!p) return 'Espace de travail'; return p.kind === 'book' ? `Livre · ${p.name} · ${STEPS[p.step].label}` : p.kind === 'poster' ? `Affiche · ${p.name}` : `Création · ${p.name}` })()
   return (
-    <div className="anim-fade flex w-[380px] shrink-0 flex-col border-l border-line bg-panel">
+    <div className="anim-fade flex w-[380px] shrink-0 flex-col border-l border-line bg-panel max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]">
       <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line px-3">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-[#8d6a2f] text-accent-ink"><Sparkles size={14} /></span>
         <div className="min-w-0 flex-1"><div className="text-[13px] font-semibold">Assistant de création</div><div className="truncate text-[11px] text-subtle">{aiReady() ? 'Claude · ' : 'Mode local · '}{ctxLabel}</div></div>

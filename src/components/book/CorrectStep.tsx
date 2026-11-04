@@ -64,10 +64,10 @@ export default function CorrectStep({ next }: { next: () => void }) {
   const scrollTo = (s: Suggestion) => { setFocus(s.id); document.getElementById('sg-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       {/* Document */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
+      <div className="flex min-w-0 flex-1 flex-col max-lg:min-h-[80vh]">
+        <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
           <Seg value={book.correctionMode} onChange={(v) => update((p) => { p.book!.correctionMode = v }, { undoable: false })} options={MODES.map((m) => ({ v: m.id, label: m.label.replace(/^\d\. /, ''), tip: m.desc }))} />
           <span className="divider-v" />
           <label className={`flex items-center gap-2 text-[12.5px] ${aiReady() ? '' : 'opacity-50'}`} data-tip={aiReady() ? 'Correction par Claude en plus des règles locales' : 'Ajoutez une clé API dans Paramètres'}>
@@ -78,13 +78,13 @@ export default function CorrectStep({ next }: { next: () => void }) {
           {busy ? <><Spinner label={busy} /><button className="btn" onClick={() => abort.current?.abort()}>Arrêter</button></> : <button className="btn-accent" onClick={analyse}><Sparkles size={14} /> Analyser le manuscrit</button>}
         </div>
         <div className="flex items-center gap-2 border-b border-line bg-panel2 px-4 py-1.5 text-[12px] text-muted"><Info size={13} className="shrink-0 text-subtle" />{MODES.find((m) => m.id === book.correctionMode)?.desc} Cliquez un passage souligné pour voir la suggestion ; sélectionnez du texte pour le faire reformuler.</div>
-        <div ref={docRef} className="canvas-bg min-h-0 flex-1 overflow-y-auto px-6 py-8" onMouseUp={() => {
+        <div ref={docRef} className="canvas-bg min-h-0 flex-1 overflow-y-auto px-3 py-5 md:px-6 md:py-8" onMouseUp={() => {
           const s = window.getSelection()
           const t = s?.toString().trim()
           const el = s?.anchorNode?.parentElement?.closest('[data-block]') as HTMLElement | null
           if (t && t.length > 8 && el) { const b = book.blocks.find((x) => x.id === el.dataset.block); if (b) setRephrase({ block: b, text: t }) }
         }}>
-          <div className="paper-shadow mx-auto max-w-[760px] space-y-3 rounded-[2px] bg-white px-16 py-14 text-[15px] leading-[1.7] text-[#1d1d1f]" style={{ fontFamily: 'EdSerif, Georgia, serif' }}>
+          <div className="paper-shadow mx-auto max-w-[760px] space-y-3 rounded-[2px] bg-white px-6 py-8 md:px-16 md:py-14 text-[15px] leading-[1.7] text-[#1d1d1f]" style={{ fontFamily: 'EdSerif, Georgia, serif' }}>
             {book.blocks.map((b) => compare ? <CompareBlock key={b.id} b={b} orig={book.originalBlocks.find((o) => o.id === b.id)} /> : (
               <BlockView key={b.id} b={b} sugg={byBlock.get(b.id) || []} focus={focus} onPick={scrollTo} />
             ))}
@@ -96,7 +96,7 @@ export default function CorrectStep({ next }: { next: () => void }) {
       </div>
 
       {/* Suggestions */}
-      <div className="flex w-[380px] shrink-0 flex-col border-l border-line bg-panel">
+      <div className="flex w-full shrink-0 flex-col border-line bg-panel max-lg:border-t lg:w-[380px] lg:border-l">
         <div className="panel-title justify-between"><span className="flex items-center gap-2"><SpellCheck size={14} /> Suggestions <span className="rounded-full bg-panel3 px-1.5 text-[10.5px] tabular-nums text-muted">{pending.length}</span></span>
           <Seg value={filter} onChange={setFilter} options={[{ v: 'pending', label: 'En attente' }, { v: 'all', label: 'Toutes' }]} />
         </div>

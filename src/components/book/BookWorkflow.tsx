@@ -25,7 +25,7 @@ export default function BookWorkflow() {
           const disabled = !has && i > 0 && i !== 4
           const ok = done[i] && !active
           return (
-            <div key={s.label} className="flex min-w-0 flex-1 items-center">
+            <div key={s.label} className="flex min-w-[124px] flex-1 items-center md:min-w-0">
               <button onClick={() => go(i)} disabled={disabled}
                 className={`group relative flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-35 ${active ? '' : 'hover:bg-panel2'}`}>
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold tabular-nums transition ${active ? 'border-accent bg-accent text-accent-ink shadow-[0_0_0_4px_var(--accent-soft)]' : ok ? 'border-ok/40 bg-ok/15 text-ok' : 'border-line2 text-muted'}`}>
@@ -33,11 +33,11 @@ export default function BookWorkflow() {
                 </span>
                 <span className="min-w-0">
                   <span className={`block truncate text-[13px] font-semibold ${active ? 'text-ink' : 'text-muted group-hover:text-ink'}`}>{s.label}</span>
-                  <span className="block truncate text-[11px] text-subtle">{s.desc}</span>
+                  <span className="block truncate text-[11px] text-subtle max-md:hidden">{s.desc}</span>
                 </span>
                 {active && <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-accent" />}
               </button>
-              {i < STEPS.length - 1 && <span className={`h-px w-6 shrink-0 ${done[i] ? 'bg-ok/50' : 'bg-line2'}`} />}
+              {i < STEPS.length - 1 && <span className={`h-px w-3 shrink-0 md:w-6 ${done[i] ? 'bg-ok/50' : 'bg-line2'}`} />}
             </div>
           )
         })}

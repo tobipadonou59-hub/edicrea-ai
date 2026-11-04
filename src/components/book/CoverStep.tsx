@@ -66,7 +66,7 @@ export default function CoverStep({ next }: { next: () => void }) {
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-panel2 px-3 text-[12.5px]">
           <button className="btn" onClick={() => setEditing(false)}><ArrowLeft size={14} /> Propositions</button>
-          <span className="text-muted">Couverture complète : 4ᵉ ({book.layout.width} mm) · dos ({geo.spine} mm pour {pageCount} pages) · 1ʳᵉ ({book.layout.width} mm) · fonds perdus {book.layout.bleed} mm. Repères bleus = plis du dos, rouges = coupe.</span>
+          <span className="text-muted max-md:hidden">Couverture complète : 4ᵉ ({book.layout.width} mm) · dos ({geo.spine} mm pour {pageCount} pages) · 1ʳᵉ ({book.layout.width} mm) · fonds perdus {book.layout.bleed} mm. Repères bleus = plis du dos, rouges = coupe.</span>
           <div className="flex-1" />
           <button className="btn-accent" onClick={next}>Finaliser <ArrowRight size={15} /></button>
         </div>
@@ -80,7 +80,7 @@ export default function CoverStep({ next }: { next: () => void }) {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-[1320px] gap-6 p-8 lg:grid-cols-[360px_1fr]">
+      <div className="mx-auto grid max-w-[1320px] gap-6 p-4 md:p-8 lg:grid-cols-[360px_1fr]">
         <div className="card h-fit space-y-3 overflow-hidden p-4 pt-0">
           <div className="panel-title -mx-4 mb-1"><BookMarked size={14} /> Informations de couverture</div>
           <Field label="Titre *"><input className="input" value={info.title} onChange={(e) => setInfo({ title: e.target.value })} /></Field>

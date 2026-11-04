@@ -67,7 +67,7 @@ export default function PosterStudio() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-panel2 px-3 text-[12.5px]">
         <button className="btn" onClick={() => setEditing(false)}><ArrowLeft size={14} /> Brief et propositions</button>
-        <span className="text-muted">{POSTER_FORMATS[poster.format]?.label}{poster.design.bleedMm ? ` · fonds perdus ${poster.design.bleedMm} mm (repères rouges)` : ''}</span>
+        <span className="truncate text-muted">{POSTER_FORMATS[poster.format]?.label}{poster.design.bleedMm ? ` · fonds perdus ${poster.design.bleedMm} mm (repères rouges)` : ''}</span>
       </div>
       <div className="min-h-0 flex-1">
         <GraphicEditor key={project.id + poster.design.width} doc={poster.design} name={project.name} kind="poster" onSave={(json, thumb, doc) => update((p) => { p.poster!.design = { ...doc, json }; if (thumb) p.thumb = thumb }, { undoable: false })} />
@@ -77,7 +77,7 @@ export default function PosterStudio() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-[1320px] gap-6 p-8 lg:grid-cols-[380px_1fr]">
+      <div className="mx-auto grid max-w-[1320px] gap-6 p-4 md:p-8 lg:grid-cols-[380px_1fr]">
         <div className="card h-fit space-y-3 overflow-hidden p-4 pt-0">
           <div className="panel-title -mx-4 mb-1"><FileText size={14} /> Brief de l’affiche</div>
           <Field label="Décrivez votre affiche"><textarea className="input h-28" value={B.description} onChange={(e) => setB({ description: e.target.value })} placeholder="Ex. : Concert de jazz au profit de l’école, samedi 14 juin à 20 h, salle des fêtes de Lyon, entrée 10 €, ambiance chaleureuse et festive." /></Field>
@@ -118,7 +118,7 @@ export default function PosterStudio() {
             </div>
           </div>
           {poster.proposals.length > 0 ? (
-          <div className="grid grid-cols-2 2xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             {poster.proposals.map((p, i) => (
               <div key={p.id} className={`group overflow-hidden rounded-xl border bg-panel transition hover:-translate-y-0.5 ${false ? 'border-accent ring-2 ring-accent/25' : 'border-line hover:border-line2'}`} style={{ boxShadow: 'var(--shadow)' }}>
                 <div className="canvas-bg relative flex aspect-[3/4] items-center justify-center p-5">

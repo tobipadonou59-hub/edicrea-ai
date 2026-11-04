@@ -31,8 +31,8 @@ export default function LayoutStep({ next }: { next: () => void }) {
 
   const contentW = L.width - L.marginInner - L.marginOuter
   return (
-    <div className="flex h-full min-h-0">
-      <div className="flex w-[300px] shrink-0 flex-col border-r border-line bg-panel">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div className="flex w-full shrink-0 flex-col border-line bg-panel max-lg:order-2 max-lg:border-t lg:w-[300px] lg:border-r">
         <div className="panel-title"><Columns3 size={14} /> Mise en page</div>
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
           <Section title="Format" icon={BookOpen}>
@@ -88,8 +88,8 @@ export default function LayoutStep({ next }: { next: () => void }) {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
+      <div className="flex min-w-0 flex-1 flex-col max-lg:min-h-[75vh]">
+        <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-1.5">
           {busy ? <Spinner label="Pagination…" /> : <span className="flex items-center gap-3 text-[12.5px]"><span><b className="tabular-nums">{pages.length}</b> <span className="text-muted">pages</span></span><span className="divider-v" /><span><b className="tabular-nums">{res?.toc.filter((t) => t.level === 1).length || 0}</b> <span className="text-muted">chapitres</span></span><span className="divider-v" /><span className="text-muted">{L.width} × {L.height} mm</span></span>}
           <div className="flex-1" />
           <Seg value={spread ? 'spread' : 'single'} onChange={(v) => setSpread(v === 'spread')} options={[{ v: 'spread', label: <span className="flex items-center gap-1.5"><BookOpen size={13} /> Doubles pages</span> }, { v: 'single', label: <span className="flex items-center gap-1.5"><Square size={13} /> Pages</span> }]} />
@@ -102,7 +102,7 @@ export default function LayoutStep({ next }: { next: () => void }) {
           <button className="btn-icon" onClick={() => setScale(scale * 1.2)}><ZoomIn size={15} /></button>
         </div>
         {res?.warnings.length ? <div className="flex items-center gap-2 border-b border-warn/25 bg-warn/10 px-4 py-2 text-[12px]"><AlertTriangle size={14} className="shrink-0 text-warn" />{res.warnings.join(' · ')}</div> : null}
-        <div className="canvas-bg min-h-0 flex-1 overflow-auto p-8">
+        <div className="canvas-bg min-h-0 flex-1 overflow-auto p-4 md:p-8">
           <div className="flex flex-col items-center gap-8">
             {rows.map((r, i) => (
               <div key={i} className={`flex ${r.length === 1 && spread && i === 0 ? 'justify-end' : ''}`} style={spread ? { width: (L.width + (bleedView ? 2 * L.bleed : 0)) * scale * 2 } : undefined}>

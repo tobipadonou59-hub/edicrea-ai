@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Plus, BookOpen, Image as ImageIcon, BookMarked, PenTool, LayoutTemplate, FolderOpen, Bot, Settings as Cog, History as HistoryIcon, Moon, Sun, Undo2, Redo2, GitBranch, MessageSquare, ChevronRight, Check, Search, Sparkles, CircleAlert, Info, X, PanelLeftClose, PanelLeftOpen, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Plus, BookOpen, Image as ImageIcon, BookMarked, PenTool, LayoutTemplate, FolderOpen, Bot, Settings as Cog, History as HistoryIcon, Moon, Sun, Undo2, Redo2, GitBranch, MessageSquare, ChevronRight, Check, Search, Sparkles, CircleAlert, Info, X, PanelLeftClose, PanelLeftOpen, Loader2, Menu as MenuIcon, Download } from 'lucide-react'
 import { useStore, type View } from './lib/store'
 import { Dashboard, NewProject, ProjectList, Templates, Library, History, Settings } from './components/pages'
 import BookWorkflow from './components/book/BookWorkflow'
@@ -7,6 +7,8 @@ import PosterStudio from './components/poster/PosterStudio'
 import GraphicEditor from './components/editor/GraphicEditor'
 import Assistant from './components/Assistant'
 import CommandPalette from './components/CommandPalette'
+import InstallDialog from './components/InstallDialog'
+import { useInstall } from './lib/pwa'
 import { diffWords } from './lib/corrector'
 import { uid } from './lib/defaults'
 import { aiReady } from './lib/ai'
@@ -34,6 +36,15 @@ export default function App() {
   const s = useStore()
   const [palette, setPalette] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [drawer, setDrawer] = useState(false)
+  const [install, setInstall] = useState(false)
+  const inst = useInstall()
+  useEffect(() => { setDrawer(false) }, [s.view])
+  useEffect(() => {
+    if (!s.ready) return
+    const q = new URLSearchParams(location.search).get('new')
+    if (q === 'book' || q === 'poster' || q === 'design') { history.replaceState(null, '', '/'); void s.createProject(q, q === 'book' ? 'Nouveau livre' : q === 'poster' ? 'Nouvelle affiche' : 'Nouvelle création') }
+  }, [s.ready]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void s.init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.classList.toggle('dark', s.settings.theme === 'dark'); document.documentElement.dataset.theme = s.settings.theme }, [s.settings.theme])
   useEffect(() => { s.assets.filter((a) => a.type === 'font').forEach((a) => { if (![...document.fonts].some((f) => f.family === a.name)) { const ff = new FontFace(a.name, `url(${a.data})`); void ff.load().then(() => document.fonts.add(ff)).catch(() => null) } }) }, [s.assets])
@@ -46,7 +57,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', k)
   }, [])
   const inProject = s.view.name === 'project' && s.project
-  const rail = collapsed || !!inProject
+  const rail = !drawer && (collapsed || !!inProject)
   const same = (a: View, b: View) => a.name === b.name && (a.name !== 'list' || (b.name === 'list' && a.filter === b.filter))
   const kinds = s.index.map((m) => m.kind)
 
@@ -58,10 +69,11 @@ export default function App() {
 
   return (
     <div className="flex h-full">
-      <aside className={`flex shrink-0 flex-col border-r border-line bg-panel transition-[width] duration-200 ${rail ? 'w-[56px]' : 'w-[236px]'}`}>
+      {drawer && <div className="anim-fade fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setDrawer(false)} />}
+      <aside className={`flex shrink-0 flex-col border-r border-line bg-panel transition-[width] duration-200 ${rail ? 'w-[56px]' : 'w-[236px]'} ${drawer ? 'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[272px] max-md:pt-[env(safe-area-inset-top)] max-md:shadow-2xl' : 'max-md:hidden'}`}>
         <div className={`flex h-14 shrink-0 items-center ${rail ? 'justify-center' : 'justify-between px-4'}`}>
           <button onClick={() => s.go({ name: 'dashboard' })} className="flex items-center gap-2.5"><Logo small={rail} /></button>
-          {!rail && <button className="btn-icon" data-tip="Réduire" onClick={() => setCollapsed(true)}><PanelLeftClose size={16} /></button>}
+          {!rail && <button className="btn-icon" data-tip="Réduire" onClick={() => (drawer ? setDrawer(false) : setCollapsed(true))}>{drawer ? <X size={16} /> : <PanelLeftClose size={16} />}</button>}
         </div>
         <div className={`space-y-2 pb-3 ${rail ? 'px-2' : 'px-3'}`}>
           <button onClick={() => s.go({ name: 'new' })} data-tip={rail ? 'Nouveau projet' : undefined} data-tip-side="right" className={`btn-accent w-full ${rail ? '!px-0' : ''}`}><Plus size={16} />{!rail && 'Nouveau projet'}</button>
@@ -98,6 +110,7 @@ export default function App() {
           )}
           <SideBtn rail={rail} icon={Bot} label="Assistant IA" kbd="Ctrl J" on={s.assistantOpen} onClick={() => s.setAssistant(!s.assistantOpen)} />
           <SideBtn rail={rail} icon={s.settings.theme === 'dark' ? Sun : Moon} label={s.settings.theme === 'dark' ? 'Mode clair' : 'Mode sombre'} onClick={() => s.setSettings({ theme: s.settings.theme === 'dark' ? 'light' : 'dark' })} />
+          {!inst.installed && <SideBtn rail={rail} icon={Download} label="Installer l’application" onClick={() => setInstall(true)} />}
           <SideBtn rail={rail} icon={Cog} label="Paramètres" on={s.view.name === 'settings'} onClick={() => s.go({ name: 'settings' })} />
           {collapsed && !inProject && <SideBtn rail icon={PanelLeftOpen} label="Déplier" onClick={() => setCollapsed(false)} />}
           {!rail && (
@@ -110,6 +123,14 @@ export default function App() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-2 pt-[env(safe-area-inset-top)] box-content md:hidden">
+          <button className="btn-icon !h-9 !w-9" aria-label="Menu" onClick={() => setDrawer(true)}><MenuIcon size={19} /></button>
+          <button onClick={() => s.go({ name: 'dashboard' })}><Logo /></button>
+          <div className="flex-1" />
+          <button className="btn-icon !h-9 !w-9" aria-label="Rechercher" onClick={() => setPalette(true)}><Search size={17} /></button>
+          <button className={`btn-icon !h-9 !w-9 ${s.assistantOpen ? 'on' : ''}`} aria-label="Assistant IA" onClick={() => s.setAssistant(!s.assistantOpen)}><Sparkles size={17} /></button>
+          <button className="btn-accent !h-9 !w-9 !px-0" aria-label="Nouveau projet" onClick={() => s.go({ name: 'new' })}><Plus size={17} /></button>
+        </div>
         {inProject ? <ProjectView /> : (
           <div className="min-h-0 flex-1 overflow-y-auto">
             {s.view.name === 'dashboard' && <Dashboard />}
@@ -124,6 +145,7 @@ export default function App() {
       </main>
       <Assistant />
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
+      {install && <InstallDialog onClose={() => setInstall(false)} />}
       {s.toast && <Toast text={s.toast} onClose={() => useStore.setState({ toast: null })} />}
     </div>
   )
@@ -152,7 +174,7 @@ function Toast({ text, onClose }: { text: string; onClose: () => void }) {
   const warn = /erreur|⚠|invalide|impossible|nécessite|configurez/i.test(text)
   const Icon = warn ? CircleAlert : /✓|enregistr|générée|import|appliqu|restaur/i.test(text) ? Check : Info
   return (
-    <div className="anim-pop fixed bottom-5 right-5 z-[60] flex max-w-md items-start gap-3 rounded-lg border border-line bg-panel py-3 pl-3 pr-2 text-[13px]" style={{ boxShadow: 'var(--shadow-lg)' }}>
+    <div className="anim-pop fixed bottom-[max(20px,env(safe-area-inset-bottom))] left-4 right-4 z-[60] flex md:left-auto md:right-5 md:max-w-md items-start gap-3 rounded-lg border border-line bg-panel py-3 pl-3 pr-2 text-[13px]" style={{ boxShadow: 'var(--shadow-lg)' }}>
       <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${warn ? 'bg-warn/15 text-warn' : 'bg-ok/15 text-ok'}`}><Icon size={12} strokeWidth={3} /></span>
       <span className="flex-1 leading-snug">{text}</span>
       <button className="btn-icon !h-6 !w-6" onClick={onClose}><X size={13} /></button>
@@ -185,25 +207,25 @@ function ProjectView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-panel px-2 md:gap-2 md:px-3">
         <button className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-muted hover:bg-panel3 hover:text-ink" onClick={() => go({ name: 'list', filter: p.kind === 'book' ? 'book' : p.kind === 'poster' ? 'poster' : 'design' })}>
-          <KI size={14} />{KIND_LABEL[p.kind]}
+          <KI size={14} /><span className="max-sm:hidden">{KIND_LABEL[p.kind]}</span>
         </button>
-        <ChevronRight size={14} className="text-subtle" />
+        <ChevronRight size={14} className="text-subtle max-sm:hidden" />
         <input className="h-8 min-w-0 max-w-sm flex-1 rounded-md bg-transparent px-2 text-[14px] font-semibold outline-none hover:bg-panel2 focus:bg-panel2 focus:ring-1 focus:ring-line2" value={p.name} onChange={(e) => update((pp) => { pp.name = e.target.value }, { undoable: false })} />
-        {p.client && <span className="chip">{p.client}</span>}
-        <span className={`chip !h-[22px] ${saving ? '' : '!text-ok'}`}>{saving ? <><Loader2 size={11} className="animate-spin" /> Enregistrement</> : <><Check size={11} strokeWidth={3} /> Enregistré</>}</span>
+        {p.client && <span className="chip max-lg:hidden">{p.client}</span>}
+        <span className={`chip !h-[22px] max-sm:!px-1.5 ${saving ? '' : '!text-ok'}`}>{saving ? <><Loader2 size={11} className="animate-spin" /><span className="max-sm:hidden"> Enregistrement</span></> : <><Check size={11} strokeWidth={3} /><span className="max-sm:hidden"> Enregistré</span></>}</span>
         <div className="flex-1" />
         {p.kind === 'book' && <>
           <button className="btn-icon" data-tip="Annuler (Ctrl Z)" disabled={!past.length} onClick={undo}><Undo2 size={16} /></button>
           <button className="btn-icon" data-tip="Rétablir (Ctrl Y)" disabled={!future.length} onClick={redo}><Redo2 size={16} /></button>
           <span className="divider-v" />
         </>}
-        <button className={`btn-ghost ${panel === 'versions' ? '!bg-panel3' : ''}`} onClick={() => setPanel(panel === 'versions' ? null : 'versions')}><GitBranch size={15} /> Versions <span className="text-[11px] tabular-nums text-subtle">{p.versions.length}</span></button>
-        <button className={`btn-ghost ${panel === 'comments' ? '!bg-panel3' : ''}`} onClick={() => setPanel(panel === 'comments' ? null : 'comments')}><MessageSquare size={15} /> Commentaires {openComments > 0 && <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-ink">{openComments}</span>}</button>
-        <span className="divider-v" />
-        <button className={`btn ${assistantOpen ? '!border-accent/50 !bg-accent-soft !text-accent' : ''}`} onClick={() => setAssistant(!assistantOpen)}><Sparkles size={14} /> Assistant</button>
-        <span className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#8a6a33] text-[11px] font-bold text-accent-ink" data-tip={settings.userName}>{(settings.userName || 'M').slice(0, 1).toUpperCase()}</span>
+        <button className={`btn-ghost ${panel === 'versions' ? '!bg-panel3' : ''}`} onClick={() => setPanel(panel === 'versions' ? null : 'versions')}><GitBranch size={15} /><span className="max-md:hidden">Versions</span> <span className="text-[11px] tabular-nums text-subtle">{p.versions.length}</span></button>
+        <button className={`btn-ghost ${panel === 'comments' ? '!bg-panel3' : ''}`} onClick={() => setPanel(panel === 'comments' ? null : 'comments')}><MessageSquare size={15} /><span className="max-md:hidden">Commentaires</span> {openComments > 0 && <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-ink">{openComments}</span>}</button>
+        <span className="divider-v max-md:hidden" />
+        <button className={`btn max-md:hidden ${assistantOpen ? '!border-accent/50 !bg-accent-soft !text-accent' : ''}`} onClick={() => setAssistant(!assistantOpen)}><Sparkles size={14} /> Assistant</button>
+        <span className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br max-md:hidden from-accent to-[#8a6a33] text-[11px] font-bold text-accent-ink" data-tip={settings.userName}>{(settings.userName || 'M').slice(0, 1).toUpperCase()}</span>
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
@@ -212,7 +234,7 @@ function ProjectView() {
           {p.kind === 'design' && p.design && <GraphicEditor key={p.id} doc={p.design} name={p.name} kind="design" onSave={(json, thumb, doc) => update((pp) => { pp.design = { ...doc, json }; if (thumb) pp.thumb = thumb }, { undoable: false })} />}
         </div>
         {panel && (
-          <div className="anim-fade flex w-80 shrink-0 flex-col border-l border-line bg-panel">
+          <div className="anim-fade flex w-80 shrink-0 flex-col border-l border-line bg-panel max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full max-md:pt-[env(safe-area-inset-top)]">
             <div className="panel-title justify-between">{panel === 'versions' ? <span className="flex items-center gap-2"><GitBranch size={14} /> Historique des versions</span> : <span className="flex items-center gap-2"><MessageSquare size={14} /> Commentaires</span>}<button className="btn-icon" onClick={() => setPanel(null)}><X size={14} /></button></div>
             {panel === 'versions' ? (
               <>
