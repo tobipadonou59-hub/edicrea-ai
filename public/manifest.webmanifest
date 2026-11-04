@@ -9,7 +9,7 @@
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
-  "background_color": "#01261d",
+  "background_color": "#0b0c10",
   "theme_color": "#13161a",
   "categories": ["productivity", "graphics", "design", "books"],
   "icons": [

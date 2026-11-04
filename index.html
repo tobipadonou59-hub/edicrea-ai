@@ -16,46 +16,64 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Lora:ital,wght@0,400;0,700;1,400&family=Oswald:wght@400;700&family=Bebas+Neue&family=Merriweather:wght@400;700&family=Poppins:wght@400;600;800&family=Abril+Fatface&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
     <style>
-      /* Écran d'ouverture : affiché instantanément, avant le chargement de l'application */
-      #splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
-        background: radial-gradient(ellipse at 50% 45%, #04352a 0%, #01261d 45%, #001a13 100%); transition: opacity .55s ease, visibility .55s; cursor: pointer }
+      /* Écran d'ouverture EDICREA AI (logo « Coup de pinceau ») — affiché avant le chargement de l'application */
+      #splash { position: fixed; inset: 0; z-index: 9999; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: #0b0c10; transition: opacity .8s cubic-bezier(.4,0,.2,1), visibility .8s; cursor: pointer; -webkit-font-smoothing: antialiased }
       #splash.out { opacity: 0; visibility: hidden }
-      #splash svg { width: min(46vw, 230px); height: auto; overflow: visible }
-      #splash .draw { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1.25s cubic-bezier(.65,0,.35,1) forwards }
-      #splash .d2 { animation-delay: .25s } #splash .d3 { animation-delay: .45s; animation-duration: 1s }
-      #splash .glow { filter: url(#sp-glow); animation: sp-draw 1.25s cubic-bezier(.65,0,.35,1) forwards, sp-pulse 2.4s ease-in-out 1.3s infinite }
-      #splash .word { font: 700 clamp(22px, 5.4vw, 30px)/1 Inter, system-ui, sans-serif; letter-spacing: .34em; color: #e9fff3; opacity: 0; transform: translateY(10px); animation: sp-in .6s ease 1.15s forwards; padding-left: .34em }
-      #splash .word b { color: #2cf28f; font-weight: 700 }
-      #splash .tag { font: 500 12px/1 Inter, system-ui, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: #5fbf92; opacity: 0; animation: sp-in .6s ease 1.45s forwards; margin-top: -14px; padding-left: .28em }
-      #splash .bar { width: 120px; height: 2px; border-radius: 2px; background: rgba(44,242,143,.15); overflow: hidden; opacity: 0; animation: sp-in .4s ease 1.6s forwards }
-      #splash .bar i { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, transparent, #2cf28f, transparent); animation: sp-load 1.1s ease-in-out infinite }
+      #splash .glow { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0; animation: sp-glow 2.2s ease-out .1s forwards }
+      #splash .g1 { width: 70vmax; height: 70vmax; left: -28vmax; top: -30vmax; background: #ff7a59; --o: .38 }
+      #splash .g2 { width: 75vmax; height: 75vmax; right: -32vmax; bottom: -34vmax; background: #6c3fc4; --o: .42 }
+      #splash .g3 { width: 40vmax; height: 40vmax; left: 50%; top: 50%; margin: -20vmax 0 0 -20vmax; background: #d6406f; --o: .16; animation-delay: .8s }
+      #splash .mark { position: relative; width: min(34vw, 156px); aspect-ratio: 1; opacity: 0; transform: scale(.55) rotate(-10deg);
+        animation: sp-pop 1.1s cubic-bezier(.2,1.3,.3,1) .35s forwards; filter: drop-shadow(0 22px 44px rgba(214,64,111,.42)) }
+      #splash .mark svg { width: 100%; height: 100%; display: block; overflow: visible }
+      #splash .reveal { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1.35s cubic-bezier(.65,0,.35,1) .95s forwards }
+      #splash .spark { transform-box: fill-box; transform-origin: center; opacity: 0; transform: scale(0) rotate(-120deg);
+        animation: sp-spark .75s cubic-bezier(.2,1.5,.35,1) 2.05s forwards, sp-twinkle 2.6s ease-in-out 2.9s infinite }
+      #splash .sheen { position: absolute; inset: 0; border-radius: 23%; overflow: hidden; pointer-events: none }
+      #splash .sheen::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%;
+        background: linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform: skewX(-18deg); animation: sp-sheen 1.1s ease-in-out 2.5s forwards }
+      #splash .word { display: flex; margin-top: 34px; font: 800 clamp(26px, 7vw, 40px)/1 Inter, system-ui, -apple-system, sans-serif; letter-spacing: .14em; color: #f3f1ec; padding-left: .14em }
+      #splash .word span { display: inline-block; opacity: 0; transform: translateY(18px); filter: blur(6px); animation: sp-letter .7s cubic-bezier(.2,.8,.2,1) forwards }
+      #splash .word .ai { background: linear-gradient(100deg, #ff7a59, #d6406f 55%, #8b5cf6); -webkit-background-clip: text; background-clip: text; color: transparent }
+      #splash .tag { margin-top: 16px; font: 600 clamp(10px, 2.6vw, 12px)/1 Inter, system-ui, sans-serif; letter-spacing: .32em; text-transform: uppercase; color: #dcb56f; padding-left: .32em;
+        opacity: 0; transform: translateY(8px); animation: sp-in .8s ease 3.25s forwards }
+      #splash .bar { position: absolute; bottom: max(56px, calc(env(safe-area-inset-bottom) + 36px)); width: 132px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; opacity: 0; animation: sp-in .5s ease 3.5s forwards }
+      #splash .bar i { display: block; height: 100%; width: 38%; background: linear-gradient(90deg, transparent, #d6406f, #ff7a59, transparent); animation: sp-load 1.4s ease-in-out infinite }
+      @keyframes sp-glow { to { opacity: var(--o) } }
+      @keyframes sp-pop { 60% { opacity: 1 } to { opacity: 1; transform: none } }
       @keyframes sp-draw { to { stroke-dashoffset: 0 } }
+      @keyframes sp-spark { to { opacity: 1; transform: none } }
+      @keyframes sp-twinkle { 0%, 100% { transform: scale(1) rotate(0) } 50% { transform: scale(1.18) rotate(18deg) } }
+      @keyframes sp-sheen { to { left: 130% } }
+      @keyframes sp-letter { to { opacity: 1; transform: none; filter: none } }
       @keyframes sp-in { to { opacity: 1; transform: none } }
-      @keyframes sp-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .82 } }
-      @keyframes sp-load { from { transform: translateX(-110%) } to { transform: translateX(260%) } }
-      @media (prefers-reduced-motion: reduce) { #splash * { animation-duration: .01s !important; animation-delay: 0s !important } }
+      @keyframes sp-load { from { transform: translateX(-110%) } to { transform: translateX(270%) } }
+      @media (prefers-reduced-motion: reduce) { #splash *, #splash *::after { animation-duration: .01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important } }
     </style>
   </head>
   <body>
     <div id="splash" role="img" aria-label="EDICREA AI">
-      <svg viewBox="150 440 420 420" aria-hidden="true">
-        <defs>
-          <linearGradient id="sp-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0f9e5e"/><stop offset=".55" stop-color="#19d977"/><stop offset="1" stop-color="#3dff9a"/></linearGradient>
-          <linearGradient id="sp-fade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0d7a4b" stop-opacity="0"/><stop offset=".35" stop-color="#0f8a55"/><stop offset="1" stop-color="#14a565"/></linearGradient>
-          <filter id="sp-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        </defs>
-        <!-- ombre décalée -->
-        <path class="draw d3" pathLength="1" d="M 360 482 A 172 172 0 0 1 360 826" stroke="#0a5a37" stroke-width="30" opacity=".9"/>
-        <!-- traits arrière (haut et bas) -->
-        <path class="draw" pathLength="1" d="M 206 482 L 330 480" stroke="#0e8a52" stroke-width="22"/>
-        <path class="draw" pathLength="1" d="M 206 808 L 330 812" stroke="#0e8a52" stroke-width="22"/>
-        <!-- arc intérieur, fondu vers la gauche -->
-        <path class="draw d2" pathLength="1" d="M 318 563 L 382 563 A 91 91 0 0 1 382 745 L 318 745" stroke="url(#sp-fade)" stroke-width="22"/>
-        <!-- trait principal lumineux -->
-        <path class="draw glow" pathLength="1" d="M 206 482 L 191 562 L 222 563 C 262 561 290 492 332 490 A 164 164 0 0 1 332 818 C 290 816 262 735 222 733 L 191 732 L 206 810" stroke="url(#sp-g)" stroke-width="28"/>
-      </svg>
-      <div class="word">EDICREA <b>AI</b></div>
-      <div class="tag">Studio de création</div>
+      <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+      <div class="mark">
+        <svg viewBox="0 0 512 512" aria-hidden="true">
+          <defs>
+            <linearGradient id="sp-brush" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff7a59"/><stop offset=".5" stop-color="#d6406f"/><stop offset="1" stop-color="#6c3fc4"/></linearGradient>
+            <mask id="sp-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+              <path class="reveal" pathLength="1" d="M 40 420 C 120 380 160 300 240 230 S 360 140 430 110" fill="none" stroke="#fff" stroke-width="190" stroke-linecap="round"/>
+            </mask>
+          </defs>
+          <rect width="512" height="512" rx="116" fill="#fbf7f0"/>
+          <g mask="url(#sp-mask)">
+            <path d="M110 360c40-120 150-210 290-230-60 40-96 90-110 150-14 62-80 112-180 80z" fill="url(#sp-brush)"/>
+            <path d="M112 362c-12 24-30 38-54 44 22 8 52 6 74-12" fill="#3a1d5c"/>
+          </g>
+          <path class="spark" d="M384 300l12 32 32 12-32 12-12 32-12-32-32-12 32-12z" fill="#dcb56f"/>
+        </svg>
+        <div class="sheen"></div>
+      </div>
+      <div class="word"><span style="animation-delay:2.35s">E</span><span style="animation-delay:2.42s">D</span><span style="animation-delay:2.49s">I</span><span style="animation-delay:2.56s">C</span><span style="animation-delay:2.63s">R</span><span style="animation-delay:2.70s">E</span><span style="animation-delay:2.77s">A</span><span style="animation-delay:2.9s">&nbsp;</span><span class="ai" style="animation-delay:2.95s">A</span><span class="ai" style="animation-delay:3.02s">I</span></div>
+      <div class="tag">Studio de création &amp; d’édition · IA</div>
       <div class="bar"><i></i></div>
     </div>
     <div id="root"></div>
