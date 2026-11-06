@@ -18,6 +18,7 @@ import type { DesignDoc } from '../../lib/types'
 import { Color, Field, Menu, MenuItem, MenuSep, Num, Slider, Toggle, FileButton, Modal, Section, Seg, Tabs } from '../ui'
 import { aiReady, askClaude, extractJSON } from '../../lib/ai'
 import ImageGenDialog from '../ImageGenDialog'
+import { TITLE_EFFECTS, applyTitleEffect } from '../../graphics/templates'
 
 type Tool = 'select' | 'hand' | 'lasso' | 'rect' | 'ellipse' | 'triangle' | 'line' | 'star' | 'text' | 'pencil' | 'brush' | 'spray' | 'eraser' | 'pen' | 'heal'
 type Obj = FabricObject & { name?: string; edRole?: string; edId?: string; edFilters?: Record<string, number> }
@@ -634,7 +635,7 @@ export default function GraphicEditor({ doc, onSave, name, kind }: { doc: Design
         download(new Blob([canvas.toSVG()], { type: 'image/svg+xml' }), base + '.svg')
       } else if (fmt === 'front' && d.coverGuides) {
         const g = d.coverGuides
-        const url = canvas.toDataURL({ format: 'png', multiplier: mult / z, left: (g.bleed + g.back + g.spine) * z, top: g.bleed * z, width: g.front * z, height: (d.height - 2 * g.bleed) * z })
+        const url = canvas.toDataURL({ format: 'png', multiplier: mult / z, left: (g.bleed + (g.flap || 0) + g.back + g.spine) * z, top: g.bleed * z, width: g.front * z, height: (d.height - 2 * g.bleed) * z })
         download(await (await fetch(url)).blob(), base + '-premiere.png')
       } else if (fmt === 'png' || fmt === 'jpg') {
         const url = canvas.toDataURL({ format: fmt === 'png' ? 'png' : 'jpeg', quality: 0.95, multiplier: mult / z, ...region })
@@ -1071,6 +1072,9 @@ function Properties({ o, sel, setProp, fonts, applyFilters, pixelEdit, replaceIm
             <button data-tip="Majuscules / minuscules" onClick={() => set({ text: o.text === o.text?.toUpperCase() ? o.text?.toLowerCase() : o.text?.toUpperCase() })}><CaseSensitive size={15} className="mx-auto" /></button>
           </div>
           <Field label="Couleur du texte"><Color value={fill || '#000000'} onChange={(v) => set({ fill: v })} /></Field>
+          <Field label="Style de titre">
+            <div className="flex flex-wrap gap-1">{TITLE_EFFECTS.map((e) => <button key={e.id} className="chip hover:!border-accent/60" onClick={() => { applyTitleEffect(o, e.id, fill && fill !== 'rgba(0,0,0,0)' ? fill : '#ffffff'); setProp({}); force((x) => x + 1) }}>{e.label}</button>)}</div>
+          </Field>
           <div className="rounded-md border border-line bg-panel2 p-2 text-[11.5px] text-muted">
             <div className="mb-1.5">Crénage : double-cliquez dans le texte et sélectionnez des lettres.</div>
             <div className="flex gap-1">

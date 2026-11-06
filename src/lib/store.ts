@@ -11,6 +11,7 @@ export type View =
   | { name: 'library' }
   | { name: 'history' }
   | { name: 'settings' }
+  | { name: 'help' }
   | { name: 'project'; id: string }
 
 export interface ProjectMeta { id: string; kind: ProjectKind; name: string; client: string; updatedAt: number; createdAt: number; thumb?: string; step: number }
@@ -45,6 +46,7 @@ interface State {
   saveNow: () => Promise<void>
   addTemplate: (t: Omit<Template, 'id' | 'createdAt'>) => void
   removeTemplate: (id: string) => void
+  updateTemplate: (id: string, patch: Partial<Template>) => void
   addAsset: (a: Omit<Asset, 'id' | 'createdAt'>) => void
   removeAsset: (id: string) => void
   log: (text: string, projectId?: string) => void
@@ -208,7 +210,12 @@ export const useStore = create<State>((set, get) => ({
     const templates = [{ ...t, id: uid(), createdAt: Date.now() }, ...get().templates]
     void idbSet('templates', templates)
     set({ templates })
-    get().notify('Modèle enregistré dans « Mes modèles »')
+    get().notify(t.kind === 'layout' ? 'Gabarit enregistré dans « Mes gabarits ».' : 'Modèle enregistré dans « Mes modèles »')
+  },
+  updateTemplate(id, patch) {
+    const templates = get().templates.map((t) => (t.id === id ? { ...t, ...patch } : t))
+    void idbSet('templates', templates)
+    set({ templates })
   },
   removeTemplate(id) {
     const templates = get().templates.filter((t) => t.id !== id)

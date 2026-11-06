@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
-import type { Block, LayoutSettings, StyleSheet, TextStyle } from './types'
+import type { Block, BlockType, LayoutSettings, PageNumbering, StyleSheet, TextStyle } from './types'
+import { withLayoutDefaults } from './defaults'
 
 // ───────────── Moteur de mise en page (pagination) ─────────────
 // Produit une liste de pages composées d'éléments positionnés en mm.
@@ -64,8 +65,8 @@ export type Item =
   | { k: 'line'; x1: number; y1: number; x2: number; y2: number; color: string; width: number }
 
 export interface Page { n: number; label: string; kind: 'title' | 'toc' | 'body' | 'blank'; items: Item[]; chapter: string }
-export interface TocEntry { level: 1 | 2; text: string; page: number; label: string }
-export interface LayoutResult { pages: Page[]; toc: TocEntry[]; warnings: string[] }
+export interface TocEntry { level: 1 | 2 | 3; text: string; page: number; label: string }
+export interface LayoutResult { pages: Page[]; toc: TocEntry[]; warnings: string[]; controlled?: number }
 
 export interface Meta { title: string; subtitle: string; author: string; publisher: string }
 
@@ -97,19 +98,38 @@ function wrap(text: string, maxW: number, firstIndent: number, s: TextStyle): Li
   return lines
 }
 
-export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSettings, meta: Meta, ratios: Record<string, number>): LayoutResult {
+export const toRoman = (n: number) => {
+  if (n <= 0) return String(n)
+  const r: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]
+  let out = ''; for (const [v, s] of r) while (n >= v) { out += s; n -= v }
+  return out
+}
+const toAlpha = (n: number) => { let s = ''; while (n > 0) { n--; s = String.fromCharCode(97 + (n % 26)) + s; n = Math.floor(n / 26) } return s }
+export function formatNumber(n: number, style: PageNumbering['style']) {
+  if (style === 'roman') return toRoman(n)
+  if (style === 'ROMAN') return toRoman(n).toUpperCase()
+  if (style === 'alpha') return toAlpha(n)
+  if (style === 'ALPHA') return toAlpha(n).toUpperCase()
+  return String(n)
+}
+
+export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettings, meta: Meta, ratios: Record<string, number>): LayoutResult {
+  const L = withLayoutDefaults(L0)
+  const N = L.numbering
   const pages: Page[] = []
   const warnings: string[] = []
   const toc: TocEntry[] = []
+  let controlled = 0 // veuves/orphelines évitées
   const contentW = L.width - L.marginInner - L.marginOuter
   const contentH = L.height - L.marginTop - L.marginBottom
   const colW = (contentW - L.gutter * (L.columns - 1)) / L.columns
   const isRecto = (n: number) => n % 2 === 1
   const left = (n: number) => (L.mirror ? (isRecto(n) ? L.marginInner : L.marginOuter) : L.marginInner)
-  const label = (n: number) => String(n + L.startNumberAt - 1)
+  const orphans = Math.max(1, Math.round(L.orphans))
+  const widows = Math.max(1, Math.round(L.widows))
 
   const newPage = (kind: Page['kind'], chapter = ''): Page => {
-    const p: Page = { n: pages.length + 1, label: label(pages.length + 1), kind, items: [], chapter }
+    const p: Page = { n: pages.length + 1, label: '', kind, items: [], chapter }
     pages.push(p)
     return p
   }
@@ -131,18 +151,22 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
     if (L.mirror) newPage('blank')
   }
 
-  // ── Réservation du sommaire (nombre d'entrées connu à l'avance)
-  const tocBlocks = blocks.filter((b) => (b.type === 'h1' || b.type === 'h2') && b.text.trim())
-  const tocLineH = styles.p.size * PT * 1.6
-  const tocPagesCount = L.toc && tocBlocks.length ? Math.max(1, Math.ceil((tocBlocks.length * tocLineH + 25) / contentH)) : 0
+  // ── Entrées du sommaire (niveau choisi, titres exclus retirés)
+  const level = (t: BlockType) => (t === 'h1' ? 1 : t === 'h2' ? 2 : t === 'h3' ? 3 : 0)
+  const tocBlocks = blocks.filter((b) => level(b.type) > 0 && level(b.type) <= L.tocDepth && !b.noToc && (b.tocLabel || b.text).trim())
+  const tocSize = L.tocFontSize || styles.p.size
+  const tocLineH = tocSize * PT * 1.65
+  const tocPagesNeeded = L.toc && tocBlocks.length ? Math.max(1, Math.ceil((tocBlocks.length * tocLineH + 25) / contentH)) : 0
   const tocPages: Page[] = []
-  for (let i = 0; i < tocPagesCount; i++) tocPages.push(newPage('toc'))
-  if (tocPagesCount && L.mirror && pages.length % 2 === 1) newPage('blank')
+  if (L.tocPosition === 'start') {
+    for (let i = 0; i < tocPagesNeeded; i++) tocPages.push(newPage('toc'))
+    if (tocPagesNeeded && L.mirror && pages.length % 2 === 1) newPage('blank')
+  }
 
   // ── Corps du texte
   let page: Page | null = null
   let col = 0
-  let y = 0 // position dans la colonne (mm depuis le haut de la zone de texte)
+  let y = 0
   let chapter = ''
   const colX = () => left(page!.n) + col * (colW + L.gutter)
   const top = () => L.marginTop
@@ -154,7 +178,6 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
   }
   const nextColumn = () => { if (col < L.columns - 1) { col++; y = 0 } else startPage() }
   const ensure = (h: number) => { if (!page) startPage(); if (h > remaining() && y > 0) nextColumn() }
-
   const lineH = (s: TextStyle) => s.size * PT * s.lineHeight
 
   const flowText = (b: Block, s: TextStyle, opts: { indentL?: number; indentR?: number; bullet?: string; box?: boolean; link?: TocEntry } = {}) => {
@@ -163,41 +186,71 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
     const w = colW - il - ir - pad * 2
     const lines = wrap(b.text, w, b.type === 'p' ? s.indent : 0, s)
     const lh = lineH(s)
-    const before = s.spaceBefore * PT
     if (!page) startPage()
-    if (y > 0) y += before
-    // contrôle des orphelines : au moins 2 lignes ensemble (ou tout le paragraphe s'il est court)
-    const keep = Math.min(lines.length, 2) * lh + (b.type.startsWith('h') ? lineH(styles.p) * 2 : 0) + pad * 2
-    if (keep > remaining() && y > 0) nextColumn()
+    if (y > 0) y += s.spaceBefore * PT
+    // titre : ne jamais le laisser seul en bas de page (solidaire du paragraphe suivant)
+    if (b.type.startsWith('h') && L.keepWithNext) {
+      const need = lines.length * lh + lineH(styles.p) * orphans + pad * 2
+      if (need > remaining() && y > 0 && need <= contentH) { nextColumn(); controlled++ }
+    }
     let fragTop = y
     const drawBox = (y0: number, y1: number) => { if (opts.box) page!.items.unshift({ k: 'rect', x: colX() + il, y: top() + y0, w: colW - il - ir, h: y1 - y0, fill: '#f1ece2', stroke: '#c9b48a' }) }
     y += pad
-    lines.forEach((ln, i) => {
-      if (y + lh > contentH + 0.01) {
-        drawBox(fragTop, y + pad)
-        nextColumn(); fragTop = y; y += pad
+    let i = 0
+    let guard = 0
+    while (i < lines.length && guard++ < 10000) {
+      const cap = Math.floor((contentH - y + 0.01) / lh)
+      let take = Math.min(Math.max(0, cap), lines.length - i)
+      const rest = lines.length - i - take
+      if (rest > 0 && take > 0) {
+        // orpheline : trop peu de lignes en bas de page → tout le paragraphe passe à la suite
+        if (i === 0 && take < orphans && y > pad) { y -= pad; nextColumn(); fragTop = y; y += pad; controlled++; continue }
+        // veuve : trop peu de lignes en haut de la page suivante → on en reporte davantage
+        if (rest < widows) {
+          const t2 = lines.length - i - widows
+          if (t2 >= (i === 0 ? orphans : 1)) { take = t2; controlled++ }
+          else if (i === 0 && y > pad) { y -= pad; nextColumn(); fragTop = y; y += pad; controlled++; continue }
+        }
       }
-      const baseline = top() + y + s.size * PT * 0.82 + (lh - s.size * PT) / 2
-      const x0 = colX() + il + pad + (i === 0 && b.type === 'p' ? s.indent : 0)
-      const avail = w - (i === 0 && b.type === 'p' ? s.indent : 0)
-      const last = i === lines.length - 1
-      const item: Item = { k: 'text', x: x0, y: baseline, text: ln.text, font: s.font, size: s.size, bold: s.bold, italic: s.italic, color: s.color }
-      if (s.align === 'center') { item.x = x0 + avail / 2; item.align = 'center' }
-      else if (s.align === 'right') { item.x = x0 + avail; item.align = 'right' }
-      else if (s.align === 'justify' && !last && ln.words.length > 1) {
-        const wordsW = ln.words.reduce((a, t) => a + textWidth(t, s.font, s.bold, s.italic, s.size), 0)
-        const gap = (avail - wordsW) / (ln.words.length - 1)
-        let cx = x0
-        item.words = ln.words.map((t) => { const r = { x: cx, t }; cx += textWidth(t, s.font, s.bold, s.italic, s.size) + gap; return r })
+      if (take <= 0) {
+        if (y > pad) { drawBox(fragTop, y); nextColumn(); fragTop = y; y += pad; continue }
+        take = 1
       }
-      if (i === 0 && opts.bullet) page!.items.push({ k: 'text', x: colX() + il - 4, y: baseline, text: opts.bullet, font: s.font, size: s.size, bold: false, italic: false, color: s.color })
-      page!.items.push(item)
-      y += lh
-    })
+      for (let k = i; k < i + take; k++) {
+        const ln = lines[k]
+        const baseline = top() + y + s.size * PT * 0.82 + (lh - s.size * PT) / 2
+        const first = k === 0
+        const x0 = colX() + il + pad + (first && b.type === 'p' ? s.indent : 0)
+        const avail = w - (first && b.type === 'p' ? s.indent : 0)
+        const last = k === lines.length - 1
+        const item: Item = { k: 'text', x: x0, y: baseline, text: ln.text, font: s.font, size: s.size, bold: s.bold, italic: s.italic, color: s.color }
+        if (s.align === 'center') { item.x = x0 + avail / 2; item.align = 'center' }
+        else if (s.align === 'right') { item.x = x0 + avail; item.align = 'right' }
+        else if (s.align === 'justify' && !last && ln.words.length > 1) {
+          const wordsW = ln.words.reduce((a, t) => a + textWidth(t, s.font, s.bold, s.italic, s.size), 0)
+          const gap = (avail - wordsW) / (ln.words.length - 1)
+          let cx = x0
+          item.words = ln.words.map((t) => { const r = { x: cx, t }; cx += textWidth(t, s.font, s.bold, s.italic, s.size) + gap; return r })
+        }
+        if (first && opts.bullet) page!.items.push({ k: 'text', x: colX() + il - 4, y: baseline, text: opts.bullet, font: s.font, size: s.size, bold: false, italic: false, color: s.color })
+        page!.items.push(item)
+        y += lh
+        if (first && opts.link) { opts.link.page = page!.n }
+      }
+      i += take
+      if (i < lines.length) { drawBox(fragTop, y + pad); nextColumn(); fragTop = y; y += pad }
+    }
     y += pad
     drawBox(fragTop, y)
     y += s.spaceAfter * PT
-    if (opts.link) { opts.link.page = page!.n; opts.link.label = page!.label }
+  }
+
+  const tocEntry = (b: Block): TocEntry | undefined => {
+    const lv = level(b.type)
+    if (!lv || lv > L.tocDepth || b.noToc || !(b.tocLabel || b.text).trim()) return undefined
+    const e: TocEntry = { level: lv as 1 | 2 | 3, text: (b.tocLabel || b.text).trim(), page: 0, label: '' }
+    toc.push(e)
+    return e
   }
 
   for (const b of blocks) {
@@ -209,18 +262,12 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
         else ensure(lineH(styles.h1) * 3)
         page!.chapter = chapter
         ;(page as unknown as Page & { opener?: boolean }).opener = y === 0
-        const e: TocEntry = { level: 1, text: b.text, page: 0, label: '' }
-        if (b.text.trim()) toc.push(e)
+        const e = tocEntry(b)
         if (L.chapterNewPage) y = contentH * 0.18
         flowText(b, styles.h1, { link: e })
         break
       }
-      case 'h2': case 'h3': {
-        const e: TocEntry = { level: 2, text: b.text, page: 0, label: '' }
-        if (b.type === 'h2' && b.text.trim()) toc.push(e)
-        flowText(b, styles[b.type], { link: b.type === 'h2' ? e : undefined })
-        break
-      }
+      case 'h2': case 'h3': flowText(b, styles[b.type], { link: tocEntry(b) }); break
       case 'p': if (b.text.trim()) flowText(b, styles.p); break
       case 'quote': flowText(b, styles.quote, { indentL: 8, indentR: 8 }); break
       case 'li': flowText(b, styles.li, { indentL: 5, bullet: '•' }); break
@@ -268,8 +315,29 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
   }
   if (!page && !pages.length) startPage()
 
+  // ── Table des matières en fin d'ouvrage (usage français pour les romans)
+  if (L.tocPosition === 'end' && tocPagesNeeded) {
+    if (L.mirror && pages.length % 2 === 1) newPage('blank')
+    for (let i = 0; i < tocPagesNeeded; i++) tocPages.push(newPage('toc'))
+  }
+
+  // ── Numérotation : libellé de chaque page
+  const firstBody = Math.max(0, pages.findIndex((p) => p.kind === 'body'))
+  const total = pages.length
+  for (const p of pages) {
+    const i = p.n - 1
+    const front = i < firstBody
+    let num: string
+    if (front && N.frontRoman) num = toRoman(i + 1)
+    else if (N.countFrom === 'body' || N.frontRoman) num = front ? '' : formatNumber(i - firstBody + L.startNumberAt, N.style)
+    else num = formatNumber(i + L.startNumberAt, N.style)
+    p.label = num
+  }
+  const totalLabel = N.countFrom === 'body' || N.frontRoman ? String(total - firstBody + L.startNumberAt - 1) : String(total + L.startNumberAt - 1)
+  for (const e of toc) e.label = e.page ? pages[e.page - 1].label : ''
+
   // ── Remplissage du sommaire
-  if (tocPagesCount) {
+  if (tocPages.length) {
     let ti = 0
     tocPages.forEach((tp, idx) => {
       let ty = L.marginTop + (idx === 0 ? 18 : 0)
@@ -278,45 +346,66 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L: LayoutSetting
       while (ti < toc.length && ty + tocLineH <= L.height - L.marginBottom) {
         const e = toc[ti++]
         const s = styles.p
-        const ind = e.level === 2 ? 6 : 0
+        const ind = (e.level - 1) * 6
         const bold = e.level === 1
+        const size = e.level === 1 ? tocSize : tocSize * 0.95
+        const numTxt = L.tocShowNumbers ? e.label : ''
         let txt = e.text
-        const numW = textWidth(e.label, s.font, bold, false, s.size)
+        const numW = numTxt ? textWidth(numTxt, s.font, bold, false, size) : 0
         const maxT = w - ind - numW - 8
-        while (txt.length > 3 && textWidth(txt, s.font, bold, false, s.size) > maxT) txt = txt.slice(0, -2)
+        while (txt.length > 3 && textWidth(txt, s.font, bold, false, size) > maxT) txt = txt.slice(0, -2)
         if (txt !== e.text) txt = txt.trimEnd() + '…'
-        const tw = textWidth(txt, s.font, bold, false, s.size)
-        const dotW = textWidth(' .', s.font, false, false, s.size)
-        const dots = Math.max(0, Math.floor((w - ind - tw - numW - 4) / dotW))
-        tp.items.push({ k: 'text', x: x0 + ind, y: ty + s.size * PT, text: txt, font: s.font, size: s.size, bold, italic: false, color: '#111111', link: e.page })
-        tp.items.push({ k: 'text', x: x0 + ind + tw + 2, y: ty + s.size * PT, text: ' .'.repeat(dots), font: s.font, size: s.size, bold: false, italic: false, color: '#888888' })
-        tp.items.push({ k: 'text', x: x0 + w, y: ty + s.size * PT, text: e.label, font: s.font, size: s.size, bold, italic: false, color: '#111111', align: 'right', link: e.page })
+        const tw = textWidth(txt, s.font, bold, false, size)
+        const by = ty + size * PT
+        tp.items.push({ k: 'text', x: x0 + ind, y: by, text: txt, font: s.font, size, bold, italic: e.level === 3, color: '#111111', link: e.page })
+        if (numTxt) {
+          const gap = w - ind - tw - numW - 4
+          if (L.tocLeader === 'dots' || L.tocLeader === 'dashes') {
+            const unit = L.tocLeader === 'dots' ? ' .' : ' –'
+            const dw = textWidth(unit, s.font, false, false, size)
+            tp.items.push({ k: 'text', x: x0 + ind + tw + 2, y: by, text: unit.repeat(Math.max(0, Math.floor(gap / dw))), font: s.font, size, bold: false, italic: false, color: '#888888' })
+          } else if (L.tocLeader === 'line') {
+            tp.items.push({ k: 'line', x1: x0 + ind + tw + 2, y1: by - 0.6, x2: x0 + w - numW - 2, y2: by - 0.6, color: '#aaaaaa', width: 0.15 })
+          }
+          tp.items.push({ k: 'text', x: x0 + w, y: by, text: numTxt, font: s.font, size, bold, italic: false, color: '#111111', align: 'right', link: e.page })
+        }
         ty += tocLineH
       }
     })
-    if (ti < toc.length) warnings.push('Le sommaire déborde : réduisez la taille du texte ou les entrées.')
+    if (ti < toc.length) warnings.push('Le sommaire déborde : réduisez le niveau de détail ou la taille du texte du sommaire.')
   }
+  if (L.toc && !tocBlocks.length) warnings.push('Sommaire activé mais aucun titre trouvé : marquez vos titres de chapitre en « Titre 1 » à l’étape Composer.')
 
-  // ── En-têtes et pieds de page
+  // ── En-têtes et folios
   for (const p of pages) {
     if (p.kind === 'title' || p.kind === 'blank') continue
     const opener = (p as Page & { opener?: boolean }).opener
     const x0 = left(p.n)
     const recto = isRecto(p.n)
+    const fill = (t: string) => t.replace(/\{titre\}/g, meta.title).replace(/\{chapitre\}/g, p.chapter).replace(/\{auteur\}/g, meta.author).replace(/\{page\}/g, p.label)
     if (L.header && p.kind === 'body' && !opener) {
-      const txt = (recto && p.chapter ? '{chapitre}' : L.headerText).replace('{titre}', meta.title).replace('{chapitre}', p.chapter).replace('{auteur}', meta.author)
+      const txt = fill(L.mirror ? (recto ? L.headerRecto : L.headerVerso) : L.headerVerso)
       const hy = L.marginTop - 6
-      p.items.push({ k: 'text', x: L.mirror ? (recto ? x0 + contentW : x0) : x0 + contentW / 2, y: hy, text: txt, font: styles.p.font, size: 8, bold: false, italic: true, color: '#555555', align: L.mirror ? (recto ? 'right' : 'left') : 'center' })
-      p.items.push({ k: 'line', x1: x0, y1: hy + 1.8, x2: x0 + contentW, y2: hy + 1.8, color: '#999999', width: 0.15 })
+      const hx = L.mirror ? (recto ? x0 + contentW : x0) : x0 + contentW / 2
+      if (txt.trim()) {
+        p.items.push({ k: 'text', x: hx, y: hy, text: txt, font: styles.p.font, size: 8, bold: false, italic: true, color: '#555555', align: L.mirror ? (recto ? 'right' : 'left') : 'center' })
+        p.items.push({ k: 'line', x1: x0, y1: hy + 1.8, x2: x0 + contentW, y2: hy + 1.8, color: '#999999', width: 0.15 })
+      }
     }
-    if (L.footer && L.pageNumbers) {
-      const fy = L.height - L.marginBottom / 2
-      const outer = L.numberPosition === 'outer' && L.mirror
-      p.items.push({ k: 'text', x: outer ? (recto ? x0 + contentW : x0) : x0 + contentW / 2, y: fy, text: p.label, font: styles.p.font, size: 9, bold: false, italic: false, color: '#333333', align: outer ? (recto ? 'right' : 'left') : 'center' })
+    const isFront = p.kind === 'toc' || p.n - 1 < firstBody
+    if (L.footer && L.pageNumbers && p.label && !(opener && N.hideOnOpeners) && !(isFront && !N.showOnFront)) {
+      const text = N.format.replace(/\{n\}/g, p.label).replace(/\{total\}/g, totalLabel)
+      const fy = N.vertical === 'top' ? L.marginTop - (L.header ? 12 : 6) : L.height - L.marginBottom / 2
+      const pos = N.position
+      const outerSide = L.mirror ? (recto ? 'right' : 'left') : 'right'
+      const side = pos === 'center' ? 'center' : pos === 'outer' ? outerSide : outerSide === 'right' ? 'left' : 'right'
+      const x = side === 'center' ? x0 + contentW / 2 : side === 'right' ? x0 + contentW : x0
+      p.items.push({ k: 'text', x, y: fy, text, font: styles.p.font, size: N.size, bold: N.bold, italic: false, color: N.color, align: side })
     }
   }
+  if (controlled) warnings.push(`${controlled} veuve(s), orpheline(s) ou titre(s) isolé(s) évité(s) automatiquement (réglage : ${orphans} ligne(s) minimum en bas, ${widows} en haut).`)
   if (pages.length % 4 !== 0) warnings.push(`Le livre compte ${pages.length} pages : les imprimeurs travaillent par cahiers (multiple de 4). ${4 - (pages.length % 4)} page(s) vierge(s) seront ajoutées à l'export imprimeur.`)
-  return { pages, toc, warnings }
+  return { pages, toc, warnings, controlled }
 }
 
 const ratioCache = new Map<string, number>()

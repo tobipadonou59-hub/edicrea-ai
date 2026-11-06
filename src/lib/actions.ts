@@ -2,6 +2,7 @@ import { useStore } from './store'
 import { aiCorrect, localCorrect, localEditorialReport, aiEditorialReport } from './corrector'
 import { aiReady } from './ai'
 import { aiConcepts, buildCover, buildPoster, localConcepts, proposalsFrom } from '../graphics/templates'
+import { coverSpec } from './defaults'
 import { imageRatios, layoutBook, loadFonts } from './layout'
 import type { CorrectionMode, LayoutSettings, Suggestion } from './types'
 
@@ -41,10 +42,10 @@ export async function generateCovers(useAI = aiReady()) {
   if (!info.title) info.title = p.name
   await loadFonts()
   const pages = layoutBook(b.blocks, b.styles, b.layout, { title: info.title, subtitle: info.subtitle, author: info.author, publisher: info.publisher }, await imageRatios(b.blocks)).pages.length
-  const pc = Math.ceil(pages / 4) * 4
+  const spec = coverSpec(info, b.layout.width, b.layout.height, pages, b.layout.bleed)
   let concepts = localConcepts(info.category, info.style, info.colors, info.title)
   if (useAI) concepts = await aiConcepts('cover', `Titre : ${info.title}\nSous-titre : ${info.subtitle}\nAuteur : ${info.author}\nCatégorie : ${info.category}\nPublic : ${info.audience}\nStyle : ${info.style}\nCouleurs : ${info.colors}\nConsignes : ${info.instructions}`, !info.images.length)
-  const props = await proposalsFrom(concepts, (c, i) => buildCover(info, c, b.layout.width, b.layout.height, pc, b.layout.bleed, i + 11))
+  const props = await proposalsFrom(concepts, (c, i) => buildCover(info, c, spec, i + 11))
   S().update((pp) => { pp.book!.cover.proposals = props.map(({ doc: _doc, ...x }) => x); pp.book!.cover.selected = -1; pp.book!.cover.design = null; pp.step = 4 })
 }
 

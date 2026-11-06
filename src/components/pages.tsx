@@ -244,10 +244,10 @@ export function NewProject() {
           <FileButton accept=".edicrea,.json" className="btn w-full" onFiles={async (f) => { try { const p = JSON.parse(await f[0].text()) as Project; if (!p.kind) throw new Error(); await importProject(p); notify('Projet importé dans votre espace.') } catch { notify('Erreur : fichier .edicrea invalide.') } }}><FileUp size={15} /> Ouvrir un fichier .edicrea</FileButton>
         </div>
       </div>
-      {templates.length > 0 && (
+      {templates.some((t) => t.kind !== 'layout') && (
         <div className="mt-8">
           <h2 className="mb-3 text-[15px] font-semibold">Partir d’un de mes modèles</h2>
-          <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{templates.map((t) => (
+          <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{templates.filter((t) => t.kind !== 'layout').map((t) => (
             <button key={t.id} className="overflow-hidden rounded-lg border border-line bg-panel text-left hover:border-accent/60" onClick={async () => { await createProject('design', t.name.replace(' — modèle', '')); update((p) => { p.design = { width: t.width, height: t.height, unitsPerMm: 0, bleedMm: 0, json: t.json } }, { undoable: false }); await useStore.getState().saveNow(); await useStore.getState().openProject(useStore.getState().project!.id) }}>
               <div className="canvas-bg flex aspect-square items-center justify-center p-2">{t.thumb && <img src={t.thumb} className="paper-shadow max-h-full max-w-full" />}</div><div className="truncate border-t border-line px-2.5 py-2 text-[12px]">{t.name}</div>
             </button>
@@ -307,12 +307,31 @@ export function ProjectList({ filter }: { filter: 'book' | 'poster' | 'cover' | 
 
 export function Templates() {
   const { templates, removeTemplate, createProject, update } = useStore()
+  const designs = templates.filter((t) => t.kind !== 'layout')
+  const gabarits = templates.filter((t) => t.kind === 'layout')
   return (
     <div className={wrap}>
-      <PageHeader eyebrow="Ressources" title="Mes modèles" subtitle="Enregistrez une création comme modèle depuis l’éditeur (bouton « Modèle »), puis réutilisez-la ici." />
-      {templates.length ? (
+      <PageHeader eyebrow="Ressources" title="Mes modèles" subtitle="Vos modèles graphiques et vos gabarits de mise en page, réutilisables dans tous vos projets." />
+      <h2 className="mb-3 text-[15px] font-semibold">Gabarits de mise en page <span className="text-[12px] font-normal text-subtle">· {gabarits.length}</span></h2>
+      {gabarits.length ? (
+        <div className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {gabarits.map((t) => { const j = t.json as { layout?: { width: number; height: number; columns: number; toc?: boolean; tocPosition?: string } }; const l = j.layout; return (
+            <div key={t.id} className="card flex items-start gap-3 p-4">
+              <div className="flex h-14 w-11 shrink-0 items-center justify-center rounded border border-line bg-white" style={{ aspectRatio: l ? `${l.width}/${l.height}` : undefined }}><div className="grid h-[70%] w-[70%] gap-0.5" style={{ gridTemplateColumns: `repeat(${l?.columns || 1}, 1fr)` }}>{Array.from({ length: l?.columns || 1 }).map((_, i) => <span key={i} className="rounded-[1px] bg-[#d9d4c8]" />)}</div></div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-semibold">{t.name}</div>
+                <div className="text-[12px] text-muted">{l ? `${l.width} × ${l.height} mm · ${l.columns} colonne(s)${l.toc ? ` · ${l.tocPosition === 'end' ? 'table des matières' : 'sommaire'}` : ''}` : ''}</div>
+                <div className="mt-1 text-[11.5px] text-subtle">À appliquer depuis l’étape « Mise en page » d’un livre.</div>
+              </div>
+              <button className="btn-icon" data-tip="Supprimer" onClick={() => { if (confirm(`Supprimer le gabarit « ${t.name} » ?`)) removeTemplate(t.id) }}><Trash2 size={13} /></button>
+            </div>
+          ) })}
+        </div>
+      ) : <p className="mb-8 rounded-lg border border-dashed border-line2 p-4 text-[12.5px] text-muted">Aucun gabarit personnel. Dans un livre, étape « Mise en page » → « Gabarits » → « Enregistrer comme gabarit ».</p>}
+      <h2 className="mb-3 text-[15px] font-semibold">Modèles graphiques <span className="text-[12px] font-normal text-subtle">· {designs.length}</span></h2>
+      {designs.length ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
-          {templates.map((t) => (
+          {designs.map((t) => (
             <div key={t.id} className="group overflow-hidden rounded-xl border border-line bg-panel" style={{ boxShadow: 'var(--shadow)' }}>
               <div className="canvas-bg flex aspect-square items-center justify-center p-3">{t.thumb && <img src={t.thumb} className="paper-shadow max-h-full max-w-full" />}</div>
               <div className="flex items-center gap-1 border-t border-line p-2.5">
@@ -323,7 +342,7 @@ export function Templates() {
             </div>
           ))}
         </div>
-      ) : <EmptyState icon={LayoutTemplate} title="Aucun modèle enregistré" text="Ouvrez une affiche ou une création, puis cliquez sur « Modèle » dans la barre d’outils de l’éditeur." />}
+      ) : <EmptyState icon={LayoutTemplate} title="Aucun modèle graphique" text="Ouvrez une affiche, une couverture ou une création, puis cliquez sur « Modèle » dans la barre d’outils de l’éditeur." />}
     </div>
   )
 }

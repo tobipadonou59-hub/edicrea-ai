@@ -16,6 +16,10 @@ export interface Block {
   /** largeur de l'image en % de la colonne */
   widthPct?: number
   comment?: string
+  /** exclure ce titre du sommaire / de la table des matières */
+  noToc?: boolean
+  /** libellé personnalisé dans le sommaire (sinon le texte du titre) */
+  tocLabel?: string
 }
 
 export type SuggestionCategory = 'orthographe' | 'grammaire' | 'ponctuation' | 'typographie' | 'style' | 'répétition' | 'cohérence' | 'reformulation'
@@ -72,6 +76,36 @@ export interface LayoutSettings {
   toc: boolean
   tocTitle: string
   mirror: boolean
+  // ── options avancées (facultatives : valeurs par défaut dans withLayoutDefaults)
+  unit?: 'mm' | 'cm' | 'in' | 'pt'
+  headerVerso?: string
+  headerRecto?: string
+  numbering?: PageNumbering
+  orphans?: number
+  widows?: number
+  keepWithNext?: boolean
+  tocDepth?: 1 | 2 | 3
+  tocPosition?: 'start' | 'end'
+  tocLeader?: 'dots' | 'dashes' | 'line' | 'none'
+  tocShowNumbers?: boolean
+  tocFontSize?: number
+}
+
+export interface PageNumbering {
+  style: 'arabic' | 'roman' | 'ROMAN' | 'alpha' | 'ALPHA'
+  /** gabarit : {n} numéro, {total} nombre de pages */
+  format: string
+  position: 'outer' | 'center' | 'inner'
+  vertical: 'bottom' | 'top'
+  size: number
+  color: string
+  bold: boolean
+  /** « body » : la page 1 est la première page du texte ; « first » : la page de titre compte comme page 1 */
+  countFrom: 'first' | 'body'
+  /** pages liminaires (titre, sommaire…) en chiffres romains minuscules */
+  frontRoman: boolean
+  hideOnOpeners: boolean
+  showOnFront: boolean
 }
 
 export interface CoverInfo {
@@ -89,6 +123,24 @@ export interface CoverInfo {
   price: string
   images: string[] // dataURLs
   paperThickness: number // mm par feuille (2 pages)
+  // ── gabarit de couverture (facultatif)
+  spineMode?: 'auto' | 'manual'
+  spineWidth?: number // mm, en mode manuel
+  paper?: string // clé de PAPERS
+  pageCount?: number // 0 = nombre de pages calculé par la mise en page
+  flaps?: boolean
+  flapWidth?: number // mm
+  coverBleed?: number // mm (sinon celui de la mise en page)
+  // ── typographie du titre
+  titleFont?: string
+  titleWeight?: string
+  titleCase?: 'upper' | 'normal' | 'lower'
+  titleSpacing?: number
+  titleLineHeight?: number
+  titleScale?: number
+  titleColor?: string
+  titleEffect?: string
+  titleAlign?: 'left' | 'center' | 'right'
 }
 
 export interface Proposal {
@@ -97,6 +149,8 @@ export interface Proposal {
   concept: string
   json: unknown // JSON Fabric
   thumb?: string
+  /** dimensions du gabarit au moment de la génération */
+  doc?: DesignDoc
 }
 
 export interface DesignDoc {
@@ -106,7 +160,7 @@ export interface DesignDoc {
   bleedMm: number
   json: unknown | null
   /** gabarit de couverture : zones */
-  coverGuides?: { back: number; spine: number; front: number; bleed: number }
+  coverGuides?: { back: number; spine: number; front: number; bleed: number; flap?: number }
 }
 
 export interface BookData {
@@ -199,4 +253,5 @@ export interface Settings {
   openaiKey: string
   openaiModel: string
   imageQuality: 'low' | 'medium' | 'high' | 'auto'
+  customFormats?: { id: string; name: string; w: number; h: number }[]
 }

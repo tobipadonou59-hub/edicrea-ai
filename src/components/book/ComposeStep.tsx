@@ -186,6 +186,14 @@ function BlockEditor({ b, styles, onChange, onFocusText, onMove, onDelete, onIns
             placeholder={b.type.startsWith('h') ? 'Titre…' : 'Texte…'}
             style={s ? { fontFamily: cssFamily(s.font), fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', fontSize: Math.min(28, s.size * 1.38), lineHeight: s.lineHeight * 1.08, color: s.color, textAlign: s.align === 'justify' ? 'left' : s.align, textIndent: b.type === 'p' ? s.indent * 3 : 0, marginTop: b.type.startsWith('h') ? Math.min(18, s.spaceBefore * 0.5) : 0 } : undefined} />
         )}
+      {b.type.startsWith('h') && (
+        <div className={`mt-0.5 flex flex-wrap items-center gap-2 font-sans text-[11px] text-[#8f887a] ${b.noToc || b.tocLabel ? '' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'}`}>
+          <button className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${b.noToc ? 'bg-[#fbeceb] text-[#c0453d]' : 'bg-[#eef6f0] text-[#2b7a4b]'}`} onClick={() => onChange({ noToc: !b.noToc })} data-tip={b.noToc ? 'Ce titre n’apparaît pas dans le sommaire' : 'Ce titre apparaît dans le sommaire'}>
+            {b.noToc ? '✕ Exclu du sommaire' : '✓ Sommaire'}
+          </button>
+          {!b.noToc && <input className="min-w-40 flex-1 rounded border border-transparent bg-transparent px-1.5 py-0.5 outline-none placeholder:text-[#b9b2a4] hover:border-[#e2ddd2] focus:border-[#dcb56f] focus:bg-white" placeholder="Libellé dans le sommaire (facultatif)" value={b.tocLabel || ''} onChange={(e) => onChange({ tocLabel: e.target.value })} />}
+        </div>
+      )}
       {gen && <ImageGenDialog title="Image pour le livre" initialAspect="4:3" initialPrompt={b.type === 'p' ? b.text.slice(0, 300) : ''} onClose={() => setGen(false)} onPick={(d) => onInsert('image', { src: d, widthPct: 100 })} />}
       {(comment || b.comment) && <div className="mb-1 mt-1 flex items-center gap-2 rounded-md border border-[#ecd9ad] bg-[#fdf6e4] px-2 py-1 font-sans"><MessageSquare size={12} className="shrink-0 text-[#b8893a]" /><input className="w-full bg-transparent text-[12px] text-[#5c4a22] outline-none placeholder:text-[#c9b48a]" placeholder="Annotation pour l’équipe…" value={b.comment || ''} onChange={(e) => onChange({ comment: e.target.value })} /></div>}
     </div>

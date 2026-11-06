@@ -41,8 +41,8 @@ export default function FinalizeStep() {
   useEffect(() => {
     if (!d?.json || !d.coverGuides) return
     const g = d.coverGuides
-    void renderCover(d.json, d.width, d.height, 0.5, { left: g.bleed + g.back + g.spine, top: g.bleed, width: g.front, height: d.height - 2 * g.bleed }).then(setFront)
-    void renderCover(d.json, d.width, d.height, 0.5, { left: g.bleed + g.back, top: g.bleed, width: g.spine, height: d.height - 2 * g.bleed }).then(setSpine)
+    void renderCover(d.json, d.width, d.height, 0.5, { left: g.bleed + (g.flap || 0) + g.back + g.spine, top: g.bleed, width: g.front, height: d.height - 2 * g.bleed }).then(setFront)
+    void renderCover(d.json, d.width, d.height, 0.5, { left: g.bleed + (g.flap || 0) + g.back, top: g.bleed, width: g.spine, height: d.height - 2 * g.bleed }).then(setSpine)
   }, [d])
 
   const run = async (label: string, fn: () => Promise<void>) => { setWorking(label); try { await fn(); log(label + ' : ' + (meta.title || project.name), project.id) } catch (e) { notify('Erreur : ' + (e as Error).message) } finally { setWorking('') } }
@@ -60,7 +60,7 @@ export default function FinalizeStep() {
       drawCropMarks(pdf, s, d.bleedMm, wmm - 2 * d.bleedMm, hmm - 2 * d.bleedMm, false)
       const g = d.coverGuides!
       pdf.setLineWidth(0.2)
-      for (const x of [g.bleed + g.back, g.bleed + g.back + g.spine].map((px) => px / d.unitsPerMm + s)) { pdf.line(x, 0, x, s - 3); pdf.line(x, hmm + s + 3, x, hmm + 2 * s) }
+      for (const x of [...(g.flap ? [g.bleed + g.flap, g.bleed + g.flap * 1 + g.back * 2 + g.spine] : []), g.bleed + (g.flap || 0) + g.back, g.bleed + (g.flap || 0) + g.back + g.spine].map((px) => px / d.unitsPerMm + s)) { pdf.line(x, 0, x, s - 3); pdf.line(x, hmm + s + 3, x, hmm + 2 * s) }
     }
     download(pdf.output('blob'), base + '-couverture.pdf')
   })

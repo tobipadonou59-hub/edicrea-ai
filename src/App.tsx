@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Plus, BookOpen, Image as ImageIcon, BookMarked, PenTool, LayoutTemplate, FolderOpen, Bot, Settings as Cog, History as HistoryIcon, Moon, Sun, Undo2, Redo2, GitBranch, MessageSquare, ChevronRight, Check, Search, Sparkles, CircleAlert, Info, X, PanelLeftClose, PanelLeftOpen, Loader2, Menu as MenuIcon, Download } from 'lucide-react'
+import { LayoutDashboard, Plus, BookOpen, Image as ImageIcon, BookMarked, PenTool, LayoutTemplate, FolderOpen, Bot, Settings as Cog, History as HistoryIcon, Moon, Sun, Undo2, Redo2, GitBranch, MessageSquare, ChevronRight, Check, Search, Sparkles, CircleAlert, Info, X, PanelLeftClose, PanelLeftOpen, Loader2, Menu as MenuIcon, Download, HelpCircle } from 'lucide-react'
 import { useStore, type View } from './lib/store'
 import { Dashboard, NewProject, ProjectList, Templates, Library, History, Settings } from './components/pages'
 import BookWorkflow from './components/book/BookWorkflow'
@@ -7,6 +7,7 @@ import PosterStudio from './components/poster/PosterStudio'
 import GraphicEditor from './components/editor/GraphicEditor'
 import Assistant from './components/Assistant'
 import CommandPalette from './components/CommandPalette'
+import { HelpPage } from './components/Help'
 import InstallDialog from './components/InstallDialog'
 import { useInstall } from './lib/pwa'
 import { diffWords } from './lib/corrector'
@@ -26,6 +27,7 @@ const NAV: { group: string; items: { v: View; label: string; icon: typeof BookOp
     { v: { name: 'templates' }, label: 'Mes modèles', icon: LayoutTemplate },
     { v: { name: 'library' }, label: 'Bibliothèque', icon: FolderOpen },
     { v: { name: 'history' }, label: 'Historique', icon: HistoryIcon },
+    { v: { name: 'help' }, label: 'Guides et aide', icon: HelpCircle },
   ] },
 ]
 
@@ -144,6 +146,7 @@ export default function App() {
             {s.view.name === 'library' && <Library />}
             {s.view.name === 'history' && <History />}
             {s.view.name === 'settings' && <Settings />}
+            {s.view.name === 'help' && <HelpPage />}
           </div>
         )}
       </main>
