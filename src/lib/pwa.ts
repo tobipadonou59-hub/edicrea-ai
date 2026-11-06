@@ -13,7 +13,17 @@ if (typeof window !== 'undefined') {
 
 export function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return
-  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => null) })
+  // Mise à jour automatique : quand une nouvelle version est publiée, l'application se recharge d'elle-même.
+  const hadController = !!navigator.serviceWorker.controller
+  let reloaded = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload() } })
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((reg) => {
+      const check = () => reg.update().catch(() => null)
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check() })
+      setInterval(check, 30 * 60 * 1000)
+    }).catch(() => null)
+  })
 }
 
 export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true
