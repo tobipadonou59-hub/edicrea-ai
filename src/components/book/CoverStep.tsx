@@ -7,7 +7,7 @@ import { readAsDataURL } from '../../lib/importers'
 import { aiReady, askClaude } from '../../lib/ai'
 import { aiConcepts, buildCover, buildBlankCover, refitCover, localConcepts, proposalsFrom, coverGeometry, applyTitleStyle, TITLE_EFFECTS, renderThumbOf } from '../../graphics/templates'
 import { ensureFonts, toJSON } from '../../graphics/setup'
-import { generateImages, imageReady, providerLabel, coverArtPrompt } from '../../lib/imageGen'
+import { generateImages, imageReady, providerLabel, coverArtPrompt, durationHint } from '../../lib/imageGen'
 import ImageGenDialog from '../ImageGenDialog'
 import type { CoverInfo, DesignDoc } from '../../lib/types'
 import { EmptyState, Field, Num, Spinner, Toggle, FileButton, Section, Seg, Modal, Color } from '../ui'
@@ -79,7 +79,7 @@ export default function CoverStep({ next }: { next: () => void }) {
       let arts: (string | null)[] = concepts.map(() => null)
       const prov = imageReady()
       if (genArt && prov && !info.images.length) {
-        setBusy(`${providerLabel(prov)} peint les illustrations des 4 couvertures… (30 à 60 s)`)
+        setBusy(`${providerLabel(prov)} peint les illustrations des 4 couvertures… (${durationHint(prov, 4)})`)
         const excerpt = book.blocks.filter((b) => b.type === 'p').slice(0, 8).map((b) => b.text).join(' ')
         arts = await Promise.all(concepts.map(async (c) => {
           if (c.layout === 'typo') return null
@@ -211,7 +211,7 @@ export default function CoverStep({ next }: { next: () => void }) {
               </div>
               <div className="relative mt-3 rounded-lg border border-line bg-panel2 px-3 py-1">
                 <Toggle label="Direction artistique IA" checked={useAI && aiReady()} onChange={(v) => setUseAI(v)} />
-                {imageReady() ? !info.images.length && <Toggle label={`Illustrations ${providerLabel(imageReady()!)}`} hint="Une image générée par couverture" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer Nano Banana / GPT Image</button>}
+                {imageReady() ? !info.images.length && <Toggle label={`Illustrations ${providerLabel(imageReady()!)}`} hint="Une image générée par couverture" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer un générateur d’images (gratuit possible)</button>}
                 {useAI && aiReady() && !info.images.length && !(genArt && imageReady()) && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}
               </div>
               <div className="relative mt-3">{busy ? <Spinner label={busy} /> : <button className="btn-accent h-9 w-full" onClick={generate}><Sparkles size={15} /> {cover.proposals.length ? 'Régénérer 4 propositions' : 'Générer 4 propositions'}</button>}</div>
@@ -230,7 +230,7 @@ export default function CoverStep({ next }: { next: () => void }) {
             </div>
             <ImportCover spec={spec} onDone={importDone} disabled={!!busy} />
           </div>
-          {!aiReady() && !imageReady() && <div className="flex items-start gap-2 rounded-lg border border-line bg-panel2 px-3 py-2 text-[12px] text-muted"><Info size={14} className="mt-0.5 shrink-0 text-subtle" />Sans clé API, les propositions sont composées par le moteur local. Avec Claude ou Nano Banana / GPT Image : direction artistique et illustrations générées.</div>}
+          {!aiReady() && !imageReady() && <div className="flex items-start gap-2 rounded-lg border border-line bg-panel2 px-3 py-2 text-[12px] text-muted"><Info size={14} className="mt-0.5 shrink-0 text-subtle" />Sans clé API, les propositions sont composées par le moteur local. Avec Claude : direction artistique ; avec un générateur d’images (Pollinations gratuit, Nano Banana, GPT Image…) : illustrations générées.</div>}
           {d && <button className="btn w-full justify-start" onClick={() => setEditing(true)}><RefreshCw size={14} /> Reprendre la couverture en cours{mismatch ? ' (dimensions à mettre à jour)' : ''}</button>}
           {cover.proposals.length > 0 ? (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

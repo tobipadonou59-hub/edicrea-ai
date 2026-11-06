@@ -249,7 +249,20 @@ export interface Settings {
   model: string
   userName: string
   effort: 'low' | 'medium' | 'high'
-  imageProvider: 'gemini' | 'openai'
+  imageProvider: 'gemini' | 'openai' | 'pollinations' | 'cloudflare' | 'huggingface' | 'local'
+  /** Pollinations (gratuit, sans clé) activé */
+  pollinationsOn?: boolean
+  pollinationsKey?: string
+  pollinationsModel?: string
+  /** URL du relais Cloudflare Worker (Workers AI) et mot de passe choisi */
+  cfUrl?: string
+  cfToken?: string
+  cfModel?: string
+  hfKey?: string
+  hfModel?: string
+  /** serveur local compatible Automatic1111 / Forge / Draw Things */
+  localUrl?: string
+  localSteps?: number
   geminiKey: string
   geminiModel: string
   openaiKey: string

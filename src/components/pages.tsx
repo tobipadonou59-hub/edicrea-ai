@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { BookOpen, Image as ImageIcon, PenTool, Copy, Trash2, Upload, Plus, FileText, Palette, Type, Search, KeyRound, Moon, Sun, ExternalLink, LayoutGrid, List, MoreHorizontal, FolderOpen, LayoutTemplate, History as HistoryIcon, Sparkles, ArrowRight, Check, Shield, Database, Cpu, FileUp, Clock, Monitor } from 'lucide-react'
 import { useStore, type ProjectMeta } from '../lib/store'
 import { POSTER_FORMATS, BOOK_FORMATS } from '../lib/defaults'
 import { readAsDataURL } from '../lib/importers'
 import type { Project, ProjectKind } from '../lib/types'
-import { EmptyState, Field, FileButton, Menu, MenuItem, MenuSep, PageHeader, Seg } from './ui'
+import { EmptyState, Field, FileButton, Menu, MenuItem, MenuSep, PageHeader, Seg, Toggle } from './ui'
 import { aiReady } from '../lib/ai'
-import { GEMINI_MODELS, OPENAI_MODELS, generateImages } from '../lib/imageGen'
+import { GEMINI_MODELS, OPENAI_MODELS, POLLINATIONS_MODELS, CF_MODELS, HF_MODELS, PROVIDERS, CF_WORKER_CODE, generateImages, providerLabel, type ImageProvider } from '../lib/imageGen'
 import { STEPS } from './book/steps'
 
 const KIND: Record<ProjectKind, { label: string; icon: typeof BookOpen; color: string; grad: string }> = {
@@ -485,59 +485,142 @@ function ImageSettings() {
   const { settings, setSettings, notify } = useStore()
   const [g, setG] = useState(settings.geminiKey)
   const [o, setO] = useState(settings.openaiKey)
-  const [test, setTest] = useState<{ img?: string; busy?: string; err?: string }>({})
-  const run = async (provider: 'gemini' | 'openai') => {
-    setTest({ busy: provider === 'gemini' ? 'Nano Banana' : 'GPT Image' })
-    try { const [img] = await generateImages({ prompt: 'Une petite plume de calligraphie dorée posée sur une feuille de papier crème, lumière douce, style illustration éditoriale, aucun texte.', aspect: '1:1', n: 1, provider }); setTest({ img }) } catch (e) { setTest({ err: (e as Error).message }) }
+  const [test, setTest] = useState<{ img?: string; busy?: string; err?: string; who?: string }>({})
+  const run = async (provider: ImageProvider) => {
+    setTest({ busy: providerLabel(provider), who: provider })
+    try { const [img] = await generateImages({ prompt: 'Une petite plume de calligraphie dorée posée sur une feuille de papier crème, lumière douce, style illustration éditoriale, aucun texte.', aspect: '1:1', n: 1, provider }); setTest({ img, who: provider }) } catch (e) { setTest({ err: (e as Error).message, who: provider }) }
   }
-  const Row = ({ id, name, by, url, keyVal, setKey, models, model, onModel, hint }: { id: 'gemini' | 'openai'; name: string; by: string; url: string; keyVal: string; setKey: (v: string) => void; models: { id: string; label: string }[]; model: string; onModel: (v: string) => void; hint: string }) => {
+  const TestResult = ({ id }: { id: ImageProvider }) => test.who !== id ? null : (
+    <div className="flex items-center gap-4 rounded-lg border border-line bg-panel2 p-3">
+      {test.busy && <span className="text-[12.5px] text-muted">Test de {test.busy} en cours…{id === 'pollinations' ? ' (jusqu’à 30 s)' : ''}</span>}
+      {test.img && <><img src={test.img} className="h-20 w-20 rounded-lg border border-line object-cover" /><span className="flex items-center gap-2 text-[13px] text-ok"><Check size={15} /> La génération d’images fonctionne.</span></>}
+      {test.err && <span className="text-[12.5px] text-danger">{test.err}</span>}
+    </div>
+  )
+  const Badge = ({ ok, free }: { ok: boolean; free?: boolean }) => <div className="flex shrink-0 items-center gap-1.5">{free && <span className="chip !border-ok/40 !text-ok">Gratuit</span>}{ok ? <span className="chip !text-ok"><Check size={11} /> Prêt</span> : <span className="chip">Non configuré</span>}</div>
+  const Head = ({ letter, color, name, by, ok, free }: { letter: ReactNode; color: string; name: string; by: string; ok: boolean; free?: boolean }) => (
+    <div className="flex items-start gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold" style={{ background: color + '22', color }}>{letter}</span>
+      <div className="min-w-0 flex-1"><h3 className="font-semibold">{name}</h3><p className="text-[12.5px] text-muted">{by}</p></div>
+      <Badge ok={ok} free={free} />
+    </div>
+  )
+  const ModelPick = ({ models, value, onChange }: { models: { id: string; label: string }[]; value: string; onChange: (v: string) => void }) => (
+    <div className="flex gap-2">
+      <select className="input" value={models.some((m) => m.id === value) ? value : '__custom'} onChange={(e) => e.target.value !== '__custom' && onChange(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}<option value="__custom">Autre modèle…</option></select>
+      <input className="input !w-56 font-mono !text-[12px]" value={value} onChange={(e) => onChange(e.target.value.trim())} />
+    </div>
+  )
+  const Steps = ({ items }: { items: ReactNode[] }) => <ol className="space-y-1.5 rounded-lg border border-line bg-panel2 p-3 text-[12.5px]">{items.map((t, i) => <li key={i} className="flex gap-2.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10.5px] font-bold text-accent">{i + 1}</span><span className="pt-px">{t}</span></li>)}</ol>
+  const Link = ({ href, children }: { href: string; children: ReactNode }) => <a className="font-medium text-accent hover:underline" href={href} target="_blank" rel="noreferrer">{children}</a>
+
+  const PaidRow = ({ id, name, by, url, keyVal, setKey, models, model, onModel, hint }: { id: 'gemini' | 'openai'; name: string; by: string; url: string; keyVal: string; setKey: (v: string) => void; models: { id: string; label: string }[]; model: string; onModel: (v: string) => void; hint: string }) => {
     const saved = id === 'gemini' ? settings.geminiKey : settings.openaiKey
     return (
       <div className="space-y-3 p-5">
-        <div className="flex items-start gap-3">
-          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${id === 'gemini' ? 'bg-[#4285f4]/15 text-[#4285f4]' : 'bg-ok/15 text-ok'}`}>{id === 'gemini' ? 'G' : 'AI'}</span>
-          <div className="min-w-0 flex-1"><h3 className="font-semibold">{name}</h3><p className="text-[12.5px] text-muted">{by} · {hint}</p></div>
-          {saved ? <span className="chip !text-ok"><Check size={11} /> Configuré</span> : <span className="chip">Non configuré</span>}
-        </div>
-        <Field label="Clé API" hint={`Obtenez une clé sur ${url}`}>
+        <Head letter={id === 'gemini' ? 'G' : 'AI'} color={id === 'gemini' ? '#4285f4' : '#10a37f'} name={name} by={`${by} · ${hint}`} ok={!!saved} />
+        <Field label="Clé API" hint={`Obtenez une clé sur ${url}${id === 'gemini' ? ' (quota gratuit limité selon le modèle)' : ' (payant à l’usage)'}`}>
           <div className="flex gap-2"><input className="input font-mono" type="password" value={keyVal} onChange={(e) => setKey(e.target.value)} placeholder={id === 'gemini' ? 'Collez votre clé Google (AIza… ou AQ.…)' : 'Collez votre clé OpenAI (sk-…)'} />
             <button className="btn-accent" onClick={() => { setSettings(id === 'gemini' ? { geminiKey: keyVal.trim(), imageProvider: keyVal.trim() ? 'gemini' : settings.imageProvider } : { openaiKey: keyVal.trim(), imageProvider: keyVal.trim() && !settings.geminiKey ? 'openai' : settings.imageProvider }); notify(keyVal.trim() ? `${name} activé.` : 'Clé supprimée.') }}>Enregistrer</button></div>
         </Field>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <Field label="Modèle">
-            <div className="flex gap-2">
-              <select className="input" value={models.some((m) => m.id === model) ? model : '__custom'} onChange={(e) => e.target.value !== '__custom' && onModel(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}<option value="__custom">Autre modèle…</option></select>
-              <input className="input !w-48 font-mono !text-[12px]" value={model} onChange={(e) => onModel(e.target.value.trim())} />
-            </div>
-          </Field>
+          <Field label="Modèle"><ModelPick models={models} value={model} onChange={onModel} /></Field>
           <div className="flex items-end"><button className="btn w-full" disabled={!saved || !!test.busy} onClick={() => void run(id)}><Sparkles size={14} /> Tester</button></div>
         </div>
+        <TestResult id={id} />
       </div>
     )
   }
+
   return (
     <div className="card divide-y divide-line">
       <div className="flex items-start gap-3 p-5">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent"><ImageIcon size={17} /></span>
-        <div className="flex-1"><h3 className="font-semibold">Génération d’images par IA</h3><p className="mt-0.5 text-[12.5px] text-muted">Illustrations de couverture, visuels d’affiche, images pour vos livres et retouche par description. Les clés restent dans ce navigateur et ne sont envoyées qu’au fournisseur choisi, qui facture la génération sur votre compte.</p></div>
+        <div className="flex-1"><h3 className="font-semibold">Génération d’images par IA</h3><p className="mt-0.5 text-[12.5px] text-muted">Illustrations de couverture, visuels d’affiche, images pour vos livres. Quatre générateurs <b>gratuits</b> et deux payants. Les clés restent dans ce navigateur et ne sont envoyées qu’au service concerné. Si le générateur choisi est indisponible (quota atteint…), EDICREA AI passe automatiquement au suivant.</p></div>
       </div>
       <div className="p-5">
-        <span className="label">Générateur utilisé par défaut</span>
-        <Seg className="flex w-full max-w-sm" value={settings.imageProvider} onChange={(v) => setSettings({ imageProvider: v })} options={[{ v: 'gemini', label: 'Nano Banana (Google)' }, { v: 'openai', label: 'GPT Image (OpenAI)' }]} />
+        <span className="label">Générateur utilisé en priorité</span>
+        <select className="input max-w-sm" value={settings.imageProvider} onChange={(e) => setSettings({ imageProvider: e.target.value as ImageProvider })}>{PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+        <p className="mt-1.5 text-[11.5px] text-subtle">Conseil pour les affiches : l’IA crée le visuel <b>sans texte</b> ; titres, dates et lieux sont posés ensuite par l’éditeur, avec vos polices, sans faute.</p>
       </div>
-      {Row({ id: 'gemini', name: 'Nano Banana', by: 'Google Gemini', url: 'aistudio.google.com/apikey', keyVal: g, setKey: setG, models: GEMINI_MODELS, model: settings.geminiModel, onModel: (v) => setSettings({ geminiModel: v }), hint: 'excellent pour retoucher une image et garder un même personnage' })}
-      {Row({ id: 'openai', name: 'GPT Image', by: 'OpenAI', url: 'platform.openai.com/api-keys', keyVal: o, setKey: setO, models: OPENAI_MODELS, model: settings.openaiModel, onModel: (v) => setSettings({ openaiModel: v }), hint: 'très fidèle aux consignes détaillées' })}
+
+      {/* 1. Pollinations */}
+      <div className="space-y-3 p-5">
+        <Head letter="P" color="#7c3aed" name="Pollinations" by="FLUX · gratuit, sans clé ni inscription — environ une image toutes les 15 s" ok={settings.pollinationsOn !== false} free />
+        <Toggle label="Activer Pollinations" hint="Aucune clé nécessaire. Service communautaire : sans garantie de disponibilité." checked={settings.pollinationsOn !== false} onChange={(v) => setSettings({ pollinationsOn: v })} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Modèle"><select className="input" value={settings.pollinationsModel || 'flux'} onChange={(e) => setSettings({ pollinationsModel: e.target.value })}>{POLLINATIONS_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></Field>
+          <Field label="Clé gratuite (facultatif)" hint="Plus rapide, sans filigrane : compte gratuit sur auth.pollinations.ai"><input className="input font-mono" type="password" value={settings.pollinationsKey || ''} onChange={(e) => setSettings({ pollinationsKey: e.target.value.trim() })} placeholder="facultatif" /></Field>
+        </div>
+        <button className="btn" disabled={settings.pollinationsOn === false || !!test.busy} onClick={() => void run('pollinations')}><Sparkles size={14} /> Tester</button>
+        <TestResult id="pollinations" />
+      </div>
+
+      {/* 2. Cloudflare */}
+      <div className="space-y-3 p-5">
+        <Head letter="CF" color="#f38020" name="Cloudflare Workers AI" by="FLUX.1 schnell · gratuit : 10 000 « neurons » par jour, de l’ordre de quelques centaines d’images" ok={!!settings.cfUrl} free />
+        <Steps items={[
+          <>Créez un compte gratuit sur <Link href="https://dash.cloudflare.com/sign-up">dash.cloudflare.com</Link>.</>,
+          <>Menu <b>Workers &amp; Pages</b> → <b>Create</b> → <b>Create Worker</b> → nommez-le « edicrea-images » → <b>Deploy</b>.</>,
+          <><b>Edit code</b> : effacez tout, collez le code du relais (bouton ci-dessous), changez le mot de passe <code>changez-moi</code>, puis <b>Deploy</b>.</>,
+          <>Onglet <b>Settings</b> → <b>Bindings</b> → <b>Add</b> → <b>Workers AI</b>, nom de la variable : <code>AI</code> → <b>Deploy</b>.</>,
+          <>Copiez l’adresse du Worker (…<code>.workers.dev</code>) et votre mot de passe dans les champs ci-dessous.</>,
+        ]} />
+        <button className="btn" onClick={() => { void navigator.clipboard.writeText(CF_WORKER_CODE).then(() => notify('Code du relais copié : collez-le dans l’éditeur du Worker.'), () => notify('Copie impossible : sélectionnez le code manuellement.')) }}><Copy size={14} /> Copier le code du relais</button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Adresse du Worker"><input className="input font-mono !text-[12px]" value={settings.cfUrl || ''} onChange={(e) => setSettings({ cfUrl: e.target.value.trim() })} placeholder="https://edicrea-images.votre-nom.workers.dev" /></Field>
+          <Field label="Mot de passe du relais"><input className="input font-mono" type="password" value={settings.cfToken || ''} onChange={(e) => setSettings({ cfToken: e.target.value.trim() })} placeholder="celui choisi dans le code" /></Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Field label="Modèle"><ModelPick models={CF_MODELS} value={settings.cfModel || CF_MODELS[0].id} onChange={(v) => setSettings({ cfModel: v })} /></Field>
+          <div className="flex items-end"><button className="btn w-full" disabled={!settings.cfUrl || !!test.busy} onClick={() => void run('cloudflare')}><Sparkles size={14} /> Tester</button></div>
+        </div>
+        <TestResult id="cloudflare" />
+      </div>
+
+      {/* 3. Hugging Face */}
+      <div className="space-y-3 p-5">
+        <Head letter="HF" color="#ffb000" name="Hugging Face" by="FLUX.1 schnell, Stable Diffusion XL · crédits gratuits chaque mois" ok={!!settings.hfKey} free />
+        <Steps items={[
+          <>Créez un compte gratuit sur <Link href="https://huggingface.co/join">huggingface.co</Link>.</>,
+          <><Link href="https://huggingface.co/settings/tokens">Settings → Access Tokens</Link> → <b>Create new token</b> → type <b>Fine-grained</b>, cochez « Make calls to Inference Providers ».</>,
+          <>Collez le jeton (hf_…) ci-dessous.</>,
+        ]} />
+        <Field label="Jeton d’accès"><input className="input font-mono" type="password" value={settings.hfKey || ''} onChange={(e) => setSettings({ hfKey: e.target.value.trim() })} placeholder="hf_…" /></Field>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Field label="Modèle"><ModelPick models={HF_MODELS} value={settings.hfModel || HF_MODELS[0].id} onChange={(v) => setSettings({ hfModel: v })} /></Field>
+          <div className="flex items-end"><button className="btn w-full" disabled={!settings.hfKey || !!test.busy} onClick={() => void run('huggingface')}><Sparkles size={14} /> Tester</button></div>
+        </div>
+        <TestResult id="huggingface" />
+      </div>
+
+      {/* 4. IA locale */}
+      <div className="space-y-3 p-5">
+        <Head letter={<Monitor size={15} />} color="#0ea5e9" name="IA locale (sur votre ordinateur)" by="Stable Diffusion / FLUX · totalement gratuit et illimité, sans internet — carte graphique recommandée" ok={!!settings.localUrl && settings.imageProvider === 'local'} free />
+        <Steps items={[
+          <>Installez un logiciel gratuit : <Link href="https://github.com/lllyasviel/stable-diffusion-webui-forge">Forge</Link> ou <Link href="https://github.com/AUTOMATIC1111/stable-diffusion-webui">Automatic1111</Link> (Windows, Linux, Mac), ou <Link href="https://drawthings.ai">Draw Things</Link> (Mac, iPhone, iPad).</>,
+          <>Forge / Automatic1111 : lancez-le avec les options <code>--api --cors-allow-origins=*</code>. Draw Things : Réglages → <b>API Server</b> → activez HTTP.</>,
+          <>Indiquez l’adresse ci-dessous (par défaut <code>http://127.0.0.1:7860</code>), puis choisissez « IA locale » comme générateur prioritaire.</>,
+        ]} />
+        <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+          <Field label="Adresse du serveur local"><input className="input font-mono !text-[12px]" value={settings.localUrl || ''} onChange={(e) => setSettings({ localUrl: e.target.value.trim() })} placeholder="http://127.0.0.1:7860" /></Field>
+          <Field label="Étapes de calcul"><input className="input" type="number" min={4} max={80} value={settings.localSteps || 25} onChange={(e) => setSettings({ localSteps: Math.max(4, Math.min(80, +e.target.value || 25)) })} /></Field>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {settings.imageProvider !== 'local' && <button className="btn" onClick={() => setSettings({ imageProvider: 'local' })}>Utiliser l’IA locale en priorité</button>}
+          <button className="btn" disabled={!settings.localUrl || !!test.busy} onClick={() => void run('local')}><Sparkles size={14} /> Tester</button>
+        </div>
+        <p className="text-[11.5px] text-subtle">Fonctionne depuis un navigateur d’ordinateur (Chrome, Edge, Firefox) sur la même machine que le logiciel.</p>
+        <TestResult id="local" />
+      </div>
+
+      {/* 5 et 6. Payants */}
+      {PaidRow({ id: 'gemini', name: 'Nano Banana', by: 'Google Gemini', url: 'aistudio.google.com/apikey', keyVal: g, setKey: setG, models: GEMINI_MODELS, model: settings.geminiModel, onModel: (v) => setSettings({ geminiModel: v }), hint: 'excellent pour retoucher une image et écrire du texte' })}
+      {PaidRow({ id: 'openai', name: 'GPT Image', by: 'OpenAI', url: 'platform.openai.com/api-keys', keyVal: o, setKey: setO, models: OPENAI_MODELS, model: settings.openaiModel, onModel: (v) => setSettings({ openaiModel: v }), hint: 'très fidèle aux consignes détaillées' })}
       <div className="p-5">
         <span className="label">Qualité (GPT Image)</span>
         <Seg className="flex w-full max-w-sm" value={settings.imageQuality} onChange={(v) => setSettings({ imageQuality: v })} options={[{ v: 'low', label: 'Brouillon' }, { v: 'medium', label: 'Standard' }, { v: 'high', label: 'Haute' }]} />
       </div>
-      {(test.busy || test.img || test.err) && (
-        <div className="flex items-center gap-4 p-5">
-          {test.busy && <span className="text-[12.5px] text-muted">Test de {test.busy} en cours…</span>}
-          {test.img && <><img src={test.img} className="h-24 w-24 rounded-lg border border-line object-cover" /><span className="flex items-center gap-2 text-[13px] text-ok"><Check size={15} /> La génération d’images fonctionne.</span></>}
-          {test.err && <span className="text-[12.5px] text-danger">{test.err}</span>}
-        </div>
-      )}
     </div>
   )
 }

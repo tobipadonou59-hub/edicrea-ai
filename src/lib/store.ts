@@ -54,7 +54,7 @@ interface State {
   setAssistant: (o: boolean) => void
 }
 
-const defaultSettings: Settings = { theme: 'dark', apiKey: '', apiBase: '', model: 'claude-opus-5-5', userName: 'Moi', effort: 'medium', imageProvider: 'gemini', geminiKey: '', geminiModel: 'gemini-2.5-flash-image', openaiKey: '', openaiModel: 'gpt-image-2', imageQuality: 'high' }
+const defaultSettings: Settings = { theme: 'dark', apiKey: '', apiBase: '', model: 'claude-opus-5-5', userName: 'Moi', effort: 'medium', imageProvider: 'pollinations', geminiKey: '', geminiModel: 'gemini-2.5-flash-image', openaiKey: '', openaiModel: 'gpt-image-2', imageQuality: 'high', pollinationsOn: true, pollinationsModel: 'flux', cfModel: '@cf/black-forest-labs/flux-1-schnell', hfModel: 'black-forest-labs/FLUX.1-schnell', localUrl: 'http://127.0.0.1:7860', localSteps: 25 }
 
 function loadSettings(): Settings {
   try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem('edicrea.settings') || '{}') } } catch { return defaultSettings }

@@ -72,7 +72,7 @@ export default function Assistant() {
           case 'generate_posters': await generatePosters(); done.push('4 propositions d’affiche générées'); break
           case 'generate_image': {
             const { generateImages, imageReady } = await import('../lib/imageGen')
-            if (!imageReady()) { done.push('⚠ Ajoutez une clé Nano Banana (Google) ou GPT Image (OpenAI) dans Paramètres'); break }
+            if (!imageReady()) { done.push('⚠ Activez un générateur d’images dans Paramètres → Images (Pollinations est gratuit)'); break }
             const [img] = await generateImages({ prompt: String(a.prompt || ''), aspect: (a.aspect as '1:1') || '1:1', n: 1 })
             const target = String(a.target || (editorBridge.current ? 'editor' : s.project?.kind === 'poster' ? 'poster' : 'cover'))
             if (target === 'editor' && editorBridge.current) { await editorBridge.current.insertImage(img); done.push('Image générée et insérée dans le document') }

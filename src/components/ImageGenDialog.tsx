@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { ImagePlus, Sparkles, Wand2, X, Check, RefreshCw, KeyRound, FolderPlus, Upload } from 'lucide-react'
 import { Modal, Seg, Spinner, FileButton } from './ui'
 import { useStore } from '../lib/store'
-import { generateImages, imageReady, providerLabel, type Aspect, type ImageProvider } from '../lib/imageGen'
+import { generateImages, imageReady, readyProviders, providerLabel, durationHint, isFree, type Aspect, type ImageProvider } from '../lib/imageGen'
 import { aiReady, askClaude } from '../lib/ai'
 import { readAsDataURL } from '../lib/importers'
 
@@ -19,7 +19,7 @@ export default function ImageGenDialog({ onClose, onPick, initialPrompt = '', in
   title?: string
 }) {
   const { settings, setSettings, addAsset, notify, go } = useStore()
-  const both = !!settings.geminiKey && !!settings.openaiKey
+  const avail = readyProviders()
   const ready = imageReady()
   const [provider, setProvider] = useState<ImageProvider>(ready || settings.imageProvider)
   const [prompt, setPrompt] = useState(initialPrompt)
@@ -55,7 +55,7 @@ export default function ImageGenDialog({ onClose, onPick, initialPrompt = '', in
   if (!ready) return (
     <Modal title={title} icon={ImagePlus} onClose={onClose}>
       <div className="space-y-3 text-[13px]">
-        <div className="flex items-start gap-3 rounded-lg border border-accent/30 bg-accent-soft p-3"><KeyRound size={16} className="mt-0.5 shrink-0 text-accent" /><span>Pour générer des images, ajoutez une clé <b>Google (Nano Banana)</b> ou <b>OpenAI (GPT Image)</b> dans les paramètres.</span></div>
+        <div className="flex items-start gap-3 rounded-lg border border-accent/30 bg-accent-soft p-3"><KeyRound size={16} className="mt-0.5 shrink-0 text-accent" /><span>Pour générer des images, activez <b>Pollinations</b> (gratuit, sans clé) ou un autre générateur : Cloudflare, Hugging Face, IA locale, Nano Banana, GPT Image.</span></div>
         <button className="btn-accent w-full" onClick={() => { onClose(); go({ name: 'settings' }); setTimeout(() => window.dispatchEvent(new CustomEvent('edicrea:settings', { detail: 'images' })), 50) }}>Ouvrir les paramètres</button>
       </div>
     </Modal>
@@ -70,8 +70,8 @@ export default function ImageGenDialog({ onClose, onPick, initialPrompt = '', in
       </>}>
       <div className="grid gap-5 md:grid-cols-[340px_1fr]">
         <div className="space-y-3.5">
-          {both && <Seg className="flex w-full" value={provider} onChange={(v) => { setProvider(v); setSettings({ imageProvider: v }) }} options={[{ v: 'gemini', label: 'Nano Banana' }, { v: 'openai', label: 'GPT Image' }]} />}
-          {!both && <div className="chip"><Sparkles size={11} className="text-accent" /> {providerLabel(provider)} · {provider === 'gemini' ? settings.geminiModel : settings.openaiModel}</div>}
+          {avail.length > 1 ? <div><span className="label">Générateur</span><select className="input" value={provider} onChange={(e) => { const v = e.target.value as ImageProvider; setProvider(v); setSettings({ imageProvider: v }) }}>{avail.map((p) => <option key={p} value={p}>{providerLabel(p)}{isFree(p) ? ' — gratuit' : ''}</option>)}</select></div>
+            : <div className="chip"><Sparkles size={11} className="text-accent" /> {providerLabel(provider)}{isFree(provider) ? ' · gratuit' : ''}</div>}
           <div>
             <span className="label">Description</span>
             <textarea className="input" rows={5} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ex. : un phare au crépuscule sur une côte bretonne, une jeune fille sur les rochers regarde l’horizon, lumière dorée, ambiance mélancolique" autoFocus />
@@ -101,7 +101,7 @@ export default function ImageGenDialog({ onClose, onPick, initialPrompt = '', in
           {busy ? <div className="flex items-center gap-2"><Spinner label={busy} /><button className="btn ml-auto" onClick={() => abort.current?.abort()}>Annuler</button></div>
             : <button className="btn-accent h-10 w-full" disabled={!prompt.trim()} onClick={run}>{results.length ? <><RefreshCw size={15} /> Régénérer</> : <><Sparkles size={15} /> Générer</>}</button>}
           {err && <p className="rounded-md border border-danger/30 bg-danger/10 p-2 text-[12px] text-danger">{err}</p>}
-          <p className="text-[11px] text-subtle">La génération est facturée par {providerLabel(provider) === 'Nano Banana' ? 'Google' : 'OpenAI'} sur votre compte (quelques centimes par image).</p>
+          <p className="text-[11px] text-subtle">{isFree(provider) ? `${providerLabel(provider)} : génération gratuite (${durationHint(provider, n)}).${provider === 'pollinations' ? ' Les images de référence ne sont pas utilisées par ce service.' : ''}` : `La génération est facturée par ${provider === 'gemini' ? 'Google' : 'OpenAI'} sur votre compte (quelques centimes par image).`}</p>
         </div>
         <div className="canvas-bg flex min-h-[340px] items-center justify-center rounded-lg border border-line p-4">
           {results.length ? (
@@ -113,7 +113,7 @@ export default function ImageGenDialog({ onClose, onPick, initialPrompt = '', in
                 </button>
               ))}
             </div>
-          ) : busy ? <Spinner label="Création en cours… (10 à 40 secondes)" /> : (
+          ) : busy ? <Spinner label={`Création en cours… (${durationHint(provider, n)})`} /> : (
             <div className="max-w-xs text-center text-[12.5px] text-muted"><ImagePlus size={28} className="mx-auto mb-2 text-subtle" />Les propositions apparaîtront ici. Cliquez sur celle que vous préférez, puis « Utiliser cette image ».</div>
           )}
         </div>

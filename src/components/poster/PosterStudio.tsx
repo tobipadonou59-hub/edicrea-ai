@@ -5,7 +5,7 @@ import { GRAPHIC_STYLES, POSTER_FORMATS, POSTER_KINDS } from '../../lib/defaults
 import { readAsDataURL } from '../../lib/importers'
 import { aiReady, askClaude, extractJSON } from '../../lib/ai'
 import { aiConcepts, buildPoster, localConcepts, proposalsFrom } from '../../graphics/templates'
-import { generateImages, imageReady, providerLabel, coverArtPrompt } from '../../lib/imageGen'
+import { generateImages, imageReady, providerLabel, coverArtPrompt, durationHint } from '../../lib/imageGen'
 import ImageGenDialog from '../ImageGenDialog'
 import type { PosterData } from '../../lib/types'
 import { EmptyState, Field, Spinner, Toggle, FileButton } from '../ui'
@@ -56,7 +56,7 @@ export default function PosterStudio() {
       let arts: (string | null)[] = concepts.map(() => null)
       const prov = imageReady()
       if (genArt && prov && !brief.brief.images.length) {
-        setBusy(`${providerLabel(prov)} crée les visuels des 4 affiches… (30 à 60 s)`)
+        setBusy(`${providerLabel(prov)} crée les visuels des 4 affiches… (${durationHint(prov, 4)})`)
         const f = POSTER_FORMATS[brief.format]
         const ratio = f.w / f.h
         const aspect = ratio > 1.4 ? '16:9' : ratio > 1.1 ? '4:3' : ratio > 0.9 ? '1:1' : ratio > 0.62 ? '3:4' : '9:16'
@@ -134,7 +134,7 @@ export default function PosterStudio() {
                 <p className="mt-0.5 text-[12.5px] text-muted">Jusqu’à 4 propositions à partir de votre description, toutes entièrement personnalisables.</p>
               </div>
               <div className="min-w-56 rounded-lg border border-line bg-panel2 px-3 py-1"><Toggle label="Direction artistique IA" checked={useAI && aiReady()} onChange={setUseAI} />
-                {imageReady() ? !B.images.length && <Toggle label={`Visuels ${providerLabel(imageReady()!)}`} hint="Une image générée par affiche" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer Nano Banana / GPT Image</button>}
+                {imageReady() ? !B.images.length && <Toggle label={`Visuels ${providerLabel(imageReady()!)}`} hint="Une image générée par affiche" checked={genArt} onChange={setGenArt} /> : <button className="py-1.5 text-left text-[12px] font-medium text-accent hover:underline" onClick={() => setArtPrompt(true)}>+ Activer un générateur d’images (gratuit possible)</button>}
                 {useAI && aiReady() && !B.images.length && !(genArt && imageReady()) && <Toggle label="Illustrations vectorielles IA" checked={svg} onChange={setSvg} />}</div>
               {busy ? <Spinner label={busy} /> : <button className="btn-accent h-9 px-4" onClick={generate}><Sparkles size={15} /> {poster.proposals.length ? 'Régénérer' : 'Générer 4 propositions'}</button>}
             </div>
