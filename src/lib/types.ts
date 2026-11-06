@@ -84,6 +84,8 @@ export interface LayoutSettings {
   orphans?: number
   widows?: number
   keepWithNext?: boolean
+  /** les titres de niveau 2 (chapitres d'une partie) commencent aussi une nouvelle page */
+  h2NewPage?: boolean
   tocDepth?: 1 | 2 | 3
   tocPosition?: 'start' | 'end'
   tocLeader?: 'dots' | 'dashes' | 'line' | 'none'

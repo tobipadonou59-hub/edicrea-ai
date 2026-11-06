@@ -119,9 +119,9 @@ export async function exportDocx(blocks: Block[], styles: StyleSheet, meta: Meta
   const align = (a: string) => (a === 'center' ? AlignmentType.CENTER : a === 'right' ? AlignmentType.RIGHT : a === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT)
   for (const b of blocks) {
     const s = (styles as Record<string, StyleSheet['p']>)[b.type]
-    if (b.type === 'h1') children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun(b.text)] }))
-    else if (b.type === 'h2') children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(b.text)] }))
-    else if (b.type === 'h3') children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun(b.text)] }))
+    if (b.type === 'h1') children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: hRuns(b.text) }))
+    else if (b.type === 'h2') children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: hRuns(b.text) }))
+    else if (b.type === 'h3') children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: hRuns(b.text) }))
     else if (b.type === 'li') children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun(b.text)] }))
     else if (b.type === 'pagebreak') children.push(new Paragraph({ children: [new PageBreak()] }))
     else if (b.type === 'image' && b.src) {
@@ -177,3 +177,6 @@ export function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000)
 }
 export const slug = (s: string) => (s || 'document').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()
+
+/** Titre sur plusieurs lignes (« Chapitre 3 » ↵ « Le retour ») → sauts de ligne Word. */
+function hRuns(t: string) { return t.split('\n').map((x, i) => new TextRun({ text: x.trim(), break: i ? 1 : 0 })) }

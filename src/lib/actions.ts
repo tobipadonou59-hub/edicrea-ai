@@ -58,3 +58,12 @@ export async function generatePosters(useAI = aiReady()) {
   const props = await proposalsFrom(concepts, (c, i) => buildPoster(p.poster!, c, i + 5))
   S().update((pp) => { pp.poster!.proposals = props.map(({ doc: _doc, ...x }) => x); pp.poster!.design = null })
 }
+
+/** Adapte la mise en page à la structure détectée (romans en parties : chapitres en niveau 2 sur nouvelle page). */
+export function applyStructureLayout(hasParts: boolean) {
+  S().update((p) => {
+    const L = p.book?.layout
+    if (!L) return
+    if (hasParts) { L.h2NewPage = true; if (!L.tocDepth || L.tocDepth < 2) L.tocDepth = 2 }
+  })
+}

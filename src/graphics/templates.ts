@@ -405,6 +405,48 @@ export async function buildBlankCover(info: CoverInfo, spec: CoverSpec, bg = '#f
   return finish(objs, g, spec)
 }
 
+export type CoverFit = 'stretch' | 'fill' | 'fit'
+export interface CoverParts { full?: string; fullHasBleed?: boolean; front?: string; back?: string; spine?: string; flapFront?: string; flapBack?: string }
+
+async function placeImage(src: string, x: number, y: number, w: number, h: number, fit: CoverFit, name: string): Promise<FabricObject | null> {
+  try {
+    const img = await FabricImage.fromURL(src)
+    if (fit === 'stretch') img.set({ left: x, top: y, scaleX: w / img.width, scaleY: h / img.height })
+    else if (fit === 'fill') {
+      const s = Math.max(w / img.width, h / img.height)
+      const cw = w / s, ch = h / s
+      img.set({ cropX: (img.width - cw) / 2, cropY: (img.height - ch) / 2, width: cw, height: ch, left: x, top: y, scaleX: s, scaleY: s })
+    } else {
+      const s = Math.min(w / img.width, h / img.height)
+      img.set({ left: x + (w - img.width * s) / 2, top: y + (h - img.height * s) / 2, scaleX: s, scaleY: s })
+    }
+    return named(img, name, 'imported')
+  } catch { return null }
+}
+
+/** Couverture déjà réalisée : image complète (4ᵉ + dos + 1ʳᵉ, rabats compris) ou fichiers séparés par zone. */
+export async function buildImportedCover(spec: CoverSpec, parts: CoverParts, fit: CoverFit = 'stretch', bg = '#ffffff'): Promise<{ json: unknown; doc: DesignDoc }> {
+  const g = coverGeometry(spec)
+  const z = zones(g)
+  const objs: FabricObject[] = [named(new Rect({ left: 0, top: 0, width: g.width, height: g.height, fill: bg }), 'Fond général', 'background')]
+  const add = (o: FabricObject | null) => { if (o) objs.push(o) }
+  if (parts.full) {
+    if (parts.fullHasBleed === false && g.bleed > 0) {
+      // image au format fini : elle est posée exactement sur la zone de coupe ; une copie agrandie dessous remplit les fonds perdus
+      add(await placeImage(parts.full, 0, 0, g.width, g.height, 'stretch', 'Prolongement des fonds perdus'))
+      add(await placeImage(parts.full, g.bleed, g.bleed, g.width - 2 * g.bleed, g.height - 2 * g.bleed, fit, 'Couverture complète importée'))
+    } else add(await placeImage(parts.full, 0, 0, g.width, g.height, fit, 'Couverture complète importée'))
+  }
+  const H = g.height
+  // chaque zone inclut les fonds perdus du côté extérieur
+  if (parts.flapBack && g.flap) add(await placeImage(parts.flapBack, 0, 0, z.backX, H, fit, 'Rabat arrière importé'))
+  if (parts.back) add(await placeImage(parts.back, g.flap ? z.backX : 0, 0, g.flap ? g.back : z.sx, H, fit, '4ᵉ de couverture importée'))
+  if (parts.spine) add(await placeImage(parts.spine, z.sx, 0, g.spinePx, H, fit, 'Dos importé'))
+  if (parts.front) add(await placeImage(parts.front, z.frontX, 0, g.flap ? g.front : g.width - z.frontX, H, fit, '1ʳᵉ de couverture importée'))
+  if (parts.flapFront && g.flap) add(await placeImage(parts.flapFront, z.ffX, 0, g.width - z.ffX, H, fit, 'Rabat avant importé'))
+  return finish(objs, g, spec)
+}
+
 /** Réajuste une couverture existante à de nouvelles dimensions (dos, rabats, format) sans perdre le travail. */
 export async function refitCover(doc: DesignDoc, spec: CoverSpec): Promise<DesignDoc> {
   const og = doc.coverGuides!

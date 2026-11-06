@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { FileText, Upload, ClipboardPaste, ArrowRight, BookOpen } from 'lucide-react'
 import { useStore } from '../../lib/store'
-import { importDocx, importPdf, textToBlocks, pdfToImages, readAsDataURL } from '../../lib/importers'
+import { importDocx, importPdf, textToBlocks, pdfToImages, readAsDataURL, lastStructure } from '../../lib/importers'
+import { describeStructure } from '../../lib/structure'
+import { applyStructureLayout } from '../../lib/actions'
 import { aiReady, ocrImages } from '../../lib/ai'
 import { BOOK_CATEGORIES } from '../../lib/defaults'
 import type { Block } from '../../lib/types'
@@ -49,7 +51,9 @@ export default function ImportStep({ next }: { next: () => void }) {
     })
     useStore.getState().snapshot('Manuscrit importé : ' + name)
     log(`Manuscrit importé (${blocks.length} blocs) : ${name}`, project.id)
-    notify(`${blocks.length} blocs importés — titres, chapitres et listes détectés automatiquement.`)
+    const st = lastStructure
+    if (st) applyStructureLayout(st.parts > 0)
+    notify(`${blocks.length} blocs importés — structure : ${st ? describeStructure(st) : 'détectée'}. Vérifiez-la à l’étape Composer.`)
   }
 
   const handle = async (f: File) => {

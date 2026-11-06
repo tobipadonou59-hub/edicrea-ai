@@ -14,6 +14,7 @@ import { EmptyState, Field, Num, Spinner, Toggle, FileButton, Section, Seg, Moda
 import GraphicEditor from '../editor/GraphicEditor'
 import { HelpButton } from '../Help'
 import { useLayout } from './useLayout'
+import ImportCover from './ImportCover'
 
 export default function CoverStep({ next }: { next: () => void }) {
   const project = useStore((s) => s.project)!
@@ -104,6 +105,13 @@ export default function CoverStep({ next }: { next: () => void }) {
     notify('Gabarit vierge prêt : à vous de créer. Les repères indiquent les zones et les plis.')
   }
 
+  const importDone = (doc: DesignDoc, thumb: string) => {
+    useStore.getState().snapshot('Couverture avant import')
+    update((p) => { p.book!.cover.design = doc; p.book!.cover.selected = -3; p.thumb = thumb })
+    setRev((x) => x + 1); setEditing(true)
+    notify('Couverture importée sur le gabarit complet (4ᵉ, dos, 1ʳᵉ). Vérifiez les repères de coupe et de pli.')
+  }
+
   const choose = (i: number) => {
     const pr = cover.proposals[i] as typeof cover.proposals[number] & { doc?: DesignDoc }
     const base: DesignDoc = pr.doc ? { ...pr.doc, json: pr.json } : { width: geo.width, height: geo.height, unitsPerMm: 6, bleedMm: spec.bleed, json: pr.json, coverGuides: { back: geo.back, spine: geo.spinePx, front: geo.front, bleed: geo.bleed, flap: geo.flap } }
@@ -169,13 +177,14 @@ export default function CoverStep({ next }: { next: () => void }) {
             </div>
             <Field label="Consignes particulières"><textarea className="input h-16" value={info.instructions} onChange={(e) => setInfo({ instructions: e.target.value })} placeholder="Ex. : ambiance chaleureuse, mettre en avant le phare…" /></Field>
             <div>
-              <span className="label">Images / illustrations à intégrer</span>
+              <span className="label">Images / illustrations à intégrer sur la 1ʳᵉ de couverture</span>
               <div className="flex flex-wrap gap-2">
                 {info.images.map((src, i) => <div key={i} className="relative"><img src={src} className="h-16 w-16 rounded object-cover" /><button className="absolute -right-1 -top-1 rounded-full bg-black/70 p-0.5 text-white" onClick={() => setInfo({ images: info.images.filter((_, j) => j !== i) })}><X size={12} /></button></div>)}
                 <FileButton accept="image/*" multiple className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-line hover:border-accent" onFiles={async (f) => setInfo({ images: [...info.images, ...(await Promise.all(f.map(readAsDataURL)))] })}><ImagePlus size={18} /></FileButton>
                 <button className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-accent/50 text-[10px] font-medium text-accent hover:bg-accent-soft" data-tip="Générer une illustration (Nano Banana / GPT Image)" onClick={() => setArtPrompt(true)}><Sparkles size={16} />IA</button>
               </div>
             </div>
+            <p className="-mt-1 text-[11px] text-subtle">Vous avez une couverture complète déjà faite (4ᵉ + dos + 1ʳᵉ) ? Utilisez la carte « Couverture déjà réalisée » : elle n’est pas recadrée sur la 1ʳᵉ.</p>
             <Field label="Texte de 4ᵉ de couverture"><textarea className="input h-24" value={info.backText} onChange={(e) => setInfo({ backText: e.target.value })} /></Field>
             <button className="btn w-full" disabled={!aiReady() || !!busy} onClick={genBack}><Wand2 size={14} /> Rédiger la 4ᵉ avec l’IA</button>
             <div className="grid grid-cols-3 gap-2">
@@ -193,7 +202,7 @@ export default function CoverStep({ next }: { next: () => void }) {
         </div>
 
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
             <div className="relative overflow-hidden rounded-xl border border-line bg-panel p-5" style={{ boxShadow: 'var(--shadow)' }}>
               <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
               <div className="relative flex items-start gap-3">
@@ -219,6 +228,7 @@ export default function CoverStep({ next }: { next: () => void }) {
               </div>
               <button className="btn mt-3 h-9 w-full" disabled={!!busy} onClick={() => void startBlank('#ffffff')}><FilePlus2 size={15} /> Partir d’une page blanche</button>
             </div>
+            <ImportCover spec={spec} onDone={importDone} disabled={!!busy} />
           </div>
           {!aiReady() && !imageReady() && <div className="flex items-start gap-2 rounded-lg border border-line bg-panel2 px-3 py-2 text-[12px] text-muted"><Info size={14} className="mt-0.5 shrink-0 text-subtle" />Sans clé API, les propositions sont composées par le moteur local. Avec Claude ou Nano Banana / GPT Image : direction artistique et illustrations générées.</div>}
           {d && <button className="btn w-full justify-start" onClick={() => setEditing(true)}><RefreshCw size={14} /> Reprendre la couverture en cours{mismatch ? ' (dimensions à mettre à jour)' : ''}</button>}

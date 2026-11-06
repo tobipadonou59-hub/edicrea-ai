@@ -7,6 +7,8 @@ import { aiReady, askClaude, extractJSON } from '../../lib/ai'
 import type { Block, BlockType, StyleSheet, TextStyle } from '../../lib/types'
 import { Color, Field, Num, Spinner, Toggle, FileButton } from '../ui'
 import { cssFamily } from '../../lib/layout'
+import { detectStructure, describeStructure, kindOf } from '../../lib/structure'
+import { applyStructureLayout } from '../../lib/actions'
 import ImageGenDialog from '../ImageGenDialog'
 
 const TYPE_LABEL: Record<BlockType, string> = { h1: 'Titre 1 (chapitre)', h2: 'Titre 2', h3: 'Titre 3', p: 'Paragraphe', quote: 'Citation', li: 'Liste à puces', box: 'Encadré', image: 'Image', table: 'Tableau', pagebreak: 'Saut de page' }
@@ -37,31 +39,54 @@ export default function ComposeStep({ next }: { next: () => void }) {
   const mut = (fn: (blocks: Block[]) => void) => update((p) => fn(p.book!.blocks))
   const insert = (at: number, type: BlockType, extra: Partial<Block> = {}) => mut((bl) => { bl.splice(at + 1, 0, { id: uid(), type, text: type === 'table' ? 'Colonne 1 | Colonne 2 | Colonne 3\nValeur | Valeur | Valeur' : type === 'pagebreak' || type === 'image' ? '' : '', ...extra }) })
 
+  // niveau des chapitres : 2 si le livre est divisé en parties (Titre 1), sinon 1
+  const chapterType: BlockType = book.blocks.some((b) => b.type === 'h1' && kindOf(b.text.split('\n')[0].trim()) === 'part') ? 'h2' : 'h1'
+
   const uniformize = () => {
     let n = 0
     mut((bl) => bl.forEach((b) => {
-      if (b.type !== 'h1') return
-      const m = b.text.match(/^(chapitre|chapter)\s*([0-9ivxlc]+)?\s*[:.\-–—]?\s*(.*)$/i)
-      const rest = m ? m[3] : b.text.replace(/^\d+[.)]\s*/, '')
-      if (/^(introduction|conclusion|prologue|épilogue|avant-propos|préface|annexe)/i.test(b.text)) return
+      if (b.type !== chapterType) return
+      const flat = b.text.replace(/\s*\n\s*/g, ' ').trim()
+      if (/^(introduction|conclusion|prologue|épilogue|epilogue|avant-propos|préface|postface|remerciements|annexe)/i.test(flat) || kindOf(flat) === 'part') return
+      const m = flat.match(/^(?:chapitre|chapter|chap\.)\s*([0-9ivxlcdm]+|[a-zéèêà-]+)?\s*[:.\-–—]?\s*(.*)$/i)
+      const rest = m ? m[2] : flat.replace(/^(\d+|[IVXLC]+)\s*[.):\-–—]\s*/, '')
       n++
-      b.text = `Chapitre ${n}${rest ? ' — ' + rest : ''}`
+      b.text = `Chapitre ${n}${rest ? '\n' + rest : ''}`
     }))
-    notify(`${n} titre(s) de chapitre uniformisé(s) (« Chapitre N — Titre »). Ctrl+Z pour annuler.`)
+    notify(`${n} titre(s) de chapitre uniformisé(s) (« Chapitre N » + titre). Ctrl+Z pour annuler.`)
+  }
+
+  const detectLocal = () => {
+    useStore.getState().snapshot('Avant détection des titres')
+    const r = detectStructure(book.blocks)
+    update((p) => { p.book!.blocks = r.blocks })
+    applyStructureLayout(r.stats.parts > 0)
+    notify(`Structure détectée : ${describeStructure(r.stats)}${r.stats.merged ? ` (${r.stats.merged} titre(s) sur deux lignes réunis)` : ''}. Ctrl+Z pour annuler.`)
   }
 
   const aiStructure = async () => {
     setBusy(true)
     try {
-      const sample = book.blocks.slice(0, 600).map((b) => ({ id: b.id, type: b.type, text: b.text.slice(0, 160) }))
+      // tous les blocs courts (candidats titres) du livre entier, avec un aperçu du bloc suivant pour le contexte
+      const sample = book.blocks.map((b, i) => ({ b, i })).filter(({ b }) => ['p', 'h1', 'h2', 'h3', 'quote', 'li', 'box'].includes(b.type) && b.text.length < 200).slice(0, 1500)
+        .map(({ b, i }) => ({ id: b.id, type: b.type, text: b.text.slice(0, 140), next: (book.blocks[i + 1]?.text || '').slice(0, 60) }))
       const txt = await askClaude({
-        maxTokens: 16000,
-        system: 'Tu es maquettiste éditorial. Analyse la structure d’un manuscrit découpé en blocs et corrige le type des blocs mal classés : h1 (chapitre/partie), h2, h3, p, quote, li, box (encadré, à retenir, exercice). Ne modifie pas les textes. Réponds UNIQUEMENT avec un tableau JSON [{"id":..., "type":...}] des seuls blocs à changer.',
+        maxTokens: 32000,
+        system: 'Tu es maquettiste éditorial. On te donne les blocs courts d’un manuscrit (avec le début du bloc suivant). Attribue le bon type à chaque titre selon la hiérarchie réelle du livre : si le livre est divisé en parties, h1 = parties (et prologue, épilogue, préface, remerciements), h2 = chapitres, h3 = sous-titres ; sans parties, h1 = chapitres, h2 = sous-titres, h3 = intertitres. Les phrases ordinaires restent p ; listes li ; citations quote ; encadrés box. Ne modifie pas les textes. Si un numéro de chapitre seul est suivi de son titre sur la ligne suivante, indique "merge": true sur le numéro. Réponds UNIQUEMENT avec un tableau JSON [{"id":..., "type":..., "merge"?: true}] des seuls blocs à changer.',
         messages: [{ role: 'user', content: JSON.stringify(sample) }],
       })
-      const changes = extractJSON<{ id: string; type: BlockType }[]>(txt)
+      const changes = extractJSON<{ id: string; type: BlockType; merge?: boolean }[]>(txt)
       useStore.getState().snapshot('Avant structuration IA')
-      mut((bl) => changes.forEach((c) => { const b = bl.find((x) => x.id === c.id); if (b && TYPE_LABEL[c.type]) b.type = c.type }))
+      let parts = false
+      mut((bl) => changes.forEach((c) => {
+        const k = bl.findIndex((x) => x.id === c.id)
+        const b = bl[k]
+        if (!b || !TYPE_LABEL[c.type]) return
+        b.type = c.type
+        if (c.type === 'h1' && kindOf(b.text) === 'part') parts = true
+        if (c.merge && bl[k + 1] && bl[k + 1].text.length < 100) { b.text = b.text.trim() + '\n' + bl[k + 1].text.trim(); bl.splice(k + 1, 1) }
+      }))
+      applyStructureLayout(parts || useStore.getState().project!.book!.blocks.some((b) => b.type === 'h2') && changes.some((c) => c.type === 'h1'))
       notify(`${changes.length} bloc(s) reclassé(s) par l’IA (version précédente enregistrée).`)
     } catch (e) { notify('IA : ' + (e as Error).message) } finally { setBusy(false) }
   }
@@ -83,7 +108,8 @@ export default function ComposeStep({ next }: { next: () => void }) {
           ))}
         </div>
         <div className="space-y-2 border-t border-line p-3">
-          <button className="btn w-full" onClick={uniformize}><Heading size={14} /> Uniformiser les titres</button>
+          <button className="btn-accent w-full" onClick={detectLocal} data-tip="Reconnaît parties, chapitres et sous-titres du manuscrit"><ListTree size={14} /> Détecter les titres</button>
+          <button className="btn w-full" onClick={uniformize}><Heading size={14} /> Uniformiser les chapitres</button>
           <button className="btn w-full" disabled={!aiReady() || busy} onClick={aiStructure} title={aiReady() ? '' : 'Clé API requise'}>{busy ? <Spinner /> : <Wand2 size={14} />} Détecter la structure (IA)</button>
           <Toggle label="Sommaire automatique" checked={book.layout.toc} onChange={(v) => update((p) => { p.book!.layout.toc = v })} />
         </div>

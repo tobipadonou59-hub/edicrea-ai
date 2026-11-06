@@ -70,10 +70,45 @@ export interface LayoutResult { pages: Page[]; toc: TocEntry[]; warnings: string
 
 export interface Meta { title: string; subtitle: string; author: string; publisher: string }
 
-interface Line { text: string; width: number; words: string[] }
+interface Line { text: string; width: number; words: string[]; end?: boolean }
+
+// Signes qui ne doivent jamais commencer une ligne (collés au mot précédent)…
+const CLOSING = /^[;:!?»)\]}…,.%’”]+[;:!?»)\]}…,.%’”'"]*$/
+// … et signes qui ne doivent jamais terminer une ligne (collés au mot suivant)
+const OPENING = /^[«(\[{“‘—–-]+$/
+const NB = '\u00a0'
+
+/** Découpe en mots en soudant la ponctuation à son mot (typographie française : jamais de « ! » ou « » » en début de ligne). */
+export function tokenize(text: string): string[] {
+  const raw = text.split(/ +/).filter(Boolean)
+  const out: string[] = []
+  let pending = ''
+  let incise = false // tiret d'incise ouvert : le suivant le referme et reste collé au mot précédent
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i]
+    if (/^[—–]$/.test(t) && i > 0) {
+      if (incise && out.length && !pending) { out[out.length - 1] += NB + t; incise = false; continue }
+      incise = true
+    }
+    if (OPENING.test(t)) { pending += t + NB; continue }
+    const w = pending + t
+    pending = ''
+    if (out.length && (CLOSING.test(t) || /^[»”’)\]]/.test(t) && !/^[»”’)\]][\p{L}\d]/u.test(t))) out[out.length - 1] += NB + w
+    else out.push(w)
+  }
+  if (pending) { if (out.length) out[out.length - 1] += NB + pending.slice(0, -1); else out.push(pending.slice(0, -1)) }
+  return out
+}
+
+/** Plusieurs lignes forcées (titres sur deux lignes) : chaque segment est composé séparément. */
+function wrapAll(text: string, maxW: number, firstIndent: number, s: TextStyle): Line[] {
+  const segs = text.split('\n').map((x) => x.trim()).filter(Boolean)
+  if (segs.length <= 1) return wrap(text.replace(/\n/g, ' '), maxW, firstIndent, s)
+  return segs.flatMap((seg, i) => { const ls = wrap(seg, maxW, i === 0 ? firstIndent : 0, s); if (ls.length) ls[ls.length - 1].end = true; return ls })
+}
 
 function wrap(text: string, maxW: number, firstIndent: number, s: TextStyle): Line[] {
-  const words = text.split(/ +/).filter(Boolean)
+  const words = tokenize(text)
   const space = textWidth(' ', s.font, s.bold, s.italic, s.size)
   const lines: Line[] = []
   let cur: string[] = [], w = 0
@@ -112,6 +147,8 @@ export function formatNumber(n: number, style: PageNumbering['style']) {
   if (style === 'ALPHA') return toAlpha(n).toUpperCase()
   return String(n)
 }
+
+const oneLine = (t: string) => t.trim().split(/\s*\n\s*/).join(' — ')
 
 export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettings, meta: Meta, ratios: Record<string, number>): LayoutResult {
   const L = withLayoutDefaults(L0)
@@ -184,7 +221,7 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettin
     const il = opts.indentL ?? 0, ir = opts.indentR ?? 0
     const pad = opts.box ? 3 : 0
     const w = colW - il - ir - pad * 2
-    const lines = wrap(b.text, w, b.type === 'p' ? s.indent : 0, s)
+    const lines = wrapAll(b.text, w, b.type === 'p' ? s.indent : 0, s)
     const lh = lineH(s)
     if (!page) startPage()
     if (y > 0) y += s.spaceBefore * PT
@@ -222,7 +259,7 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettin
         const first = k === 0
         const x0 = colX() + il + pad + (first && b.type === 'p' ? s.indent : 0)
         const avail = w - (first && b.type === 'p' ? s.indent : 0)
-        const last = k === lines.length - 1
+        const last = k === lines.length - 1 || !!ln.end
         const item: Item = { k: 'text', x: x0, y: baseline, text: ln.text, font: s.font, size: s.size, bold: s.bold, italic: s.italic, color: s.color }
         if (s.align === 'center') { item.x = x0 + avail / 2; item.align = 'center' }
         else if (s.align === 'right') { item.x = x0 + avail; item.align = 'right' }
@@ -248,7 +285,7 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettin
   const tocEntry = (b: Block): TocEntry | undefined => {
     const lv = level(b.type)
     if (!lv || lv > L.tocDepth || b.noToc || !(b.tocLabel || b.text).trim()) return undefined
-    const e: TocEntry = { level: lv as 1 | 2 | 3, text: (b.tocLabel || b.text).trim(), page: 0, label: '' }
+    const e: TocEntry = { level: lv as 1 | 2 | 3, text: oneLine(b.tocLabel || b.text), page: 0, label: '' }
     toc.push(e)
     return e
   }
@@ -257,7 +294,7 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettin
     switch (b.type) {
       case 'pagebreak': startPage(); break
       case 'h1': {
-        chapter = b.text
+        chapter = oneLine(b.text)
         if (L.chapterNewPage || !page) startPage(L.chapterOnRecto)
         else ensure(lineH(styles.h1) * 3)
         page!.chapter = chapter
@@ -267,7 +304,20 @@ export function layoutBook(blocks: Block[], styles: StyleSheet, L0: LayoutSettin
         flowText(b, styles.h1, { link: e })
         break
       }
-      case 'h2': case 'h3': flowText(b, styles[b.type], { link: tocEntry(b) }); break
+      case 'h2': {
+        // romans en parties : chaque chapitre (niveau 2) ouvre une nouvelle page
+        if (L.h2NewPage && L.chapterNewPage) {
+          chapter = oneLine(b.text)
+          startPage(L.chapterOnRecto)
+          page!.chapter = chapter
+          ;(page as unknown as Page & { opener?: boolean }).opener = true
+          const e = tocEntry(b)
+          y = contentH * 0.18
+          flowText(b, styles.h2, { link: e })
+        } else flowText(b, styles.h2, { link: tocEntry(b) })
+        break
+      }
+      case 'h3': flowText(b, styles.h3, { link: tocEntry(b) }); break
       case 'p': if (b.text.trim()) flowText(b, styles.p); break
       case 'quote': flowText(b, styles.quote, { indentL: 8, indentR: 8 }); break
       case 'li': flowText(b, styles.li, { indentL: 5, bullet: '•' }); break

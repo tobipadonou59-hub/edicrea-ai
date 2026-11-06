@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { BookOpen, Ruler, BookMarked, PanelLeftOpen, LayoutTemplate, Hash, AlignLeft, ListOrdered, Type, PenTool, HelpCircle, type LucideIcon } from 'lucide-react'
+import { BookOpen, Ruler, BookMarked, PanelLeftOpen, LayoutTemplate, Hash, AlignLeft, ListOrdered, Type, PenTool, HelpCircle, Upload, Heading, Quote, type LucideIcon } from 'lucide-react'
 import { Modal } from './ui'
 
 // ───────── Guide intégré : explications pas à pas de chaque fonction de mise en page
-export type HelpTopic = 'format' | 'dos' | 'rabats' | 'gabarits' | 'numerotation' | 'veuves' | 'sommaire' | 'typo' | 'libre'
+export type HelpTopic = 'format' | 'dos' | 'rabats' | 'gabarits' | 'numerotation' | 'veuves' | 'sommaire' | 'typo' | 'libre' | 'importcouv' | 'structure' | 'ponctuation'
 
 const Step = ({ n, children }: { n: number; children: ReactNode }) => (
   <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-bold text-accent">{n}</span><span className="pt-0.5">{children}</span></li>
@@ -146,6 +146,52 @@ export const TOPICS: Record<HelpTopic, { title: string; icon: LucideIcon; body: 
           <Step n={3}>Dessinez avec tous les outils du studio : formes, plume, images, textes, calques, dégradés, retouche photo, images générées si vous le souhaitez.</Step>
           <Step n={4}>Enregistrez votre création comme <Path>Modèle</Path> pour la réutiliser sur d’autres livres.</Step>
         </ol>
+      </div>
+    ),
+  },
+  structure: {
+    title: 'Titres, parties et chapitres du manuscrit', icon: Heading, body: (
+      <div className="space-y-4">
+        <p>À l’import, EDICREA AI reconnaît automatiquement la structure de votre texte et attribue un <b>niveau</b> à chaque titre :</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><b>Niveau 1 (Titre 1)</b> : les parties (« Première partie », « Partie I », « Livre 2 »…), ainsi que Prologue, Épilogue, Préface, Remerciements.</li>
+          <li><b>Niveau 2 (Titre 2)</b> : les chapitres d’une partie (« Chapitre 3 », « 3. Le retour », « III », « Douze »…). Sans parties, les chapitres sont au niveau 1.</li>
+          <li><b>Niveau 3 (Titre 3)</b> : les sous-titres et intertitres (« 1.2 Méthode », titres plus petits).</li>
+        </ul>
+        <ol className="space-y-2">
+          <Step n={1}>Les indices utilisés : les mots-clés et numéros, les <b>styles Word</b> (Titre 1, Titre 2…, niveaux de plan), la <b>taille</b>, le <b>gras</b> et le <b>centrage</b> du texte d’origine (Word et PDF).</Step>
+          <Step n={2}>Un chapitre écrit sur deux lignes (« Chapitre 3 » puis « Le retour ») est réuni en un seul titre sur deux lignes ; le sommaire affiche « Chapitre 3 — Le retour ».</Step>
+          <Step n={3}>Manuscrit déjà importé ? Étape <Path>3 · Composer</Path> → bouton <Path>Détecter les titres</Path> : la détection est relancée sur le texte actuel, et vous pouvez l’annuler.</Step>
+          <Step n={4}>Pour corriger un titre à la main, changez son type (Titre 1 / 2 / 3 / Paragraphe) dans la liste déroulante de chaque bloc.</Step>
+        </ol>
+        <Tip>Dans Word, appliquez les styles « Titre 1 » aux parties et « Titre 2 » aux chapitres : la reconnaissance est alors parfaite. Avec des parties, activez à l’étape 4 « Les chapitres (niveau 2) commencent une nouvelle page » ; c’est fait automatiquement à l’import.</Tip>
+      </div>
+    ),
+  },
+  ponctuation: {
+    title: 'Ponctuation et coupures de ligne', icon: Quote, body: (
+      <div className="space-y-4">
+        <p>En typographie française, aucun signe de ponctuation ne doit commencer une ligne. Le moteur de mise en page l’empêche automatiquement :</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><b>; : ! ? » … )</b> restent toujours collés au mot qui précède, même si le manuscrit contient une espace avant eux ;</li>
+          <li><b>« ( — –</b> (guillemet ouvrant, parenthèse, tiret de dialogue ou d’incise) restent collés au mot qui suit ;</li>
+          <li>les espaces insécables (fines ou normales) ne sont jamais coupées.</li>
+        </ul>
+        <Tip>L’étape <Path>2 · Corriger</Path> propose aussi de remplacer les espaces ordinaires par des espaces fines insécables avant ; : ! ? et dans les guillemets.</Tip>
+      </div>
+    ),
+  },
+  importcouv: {
+    title: 'Importer une couverture déjà réalisée', icon: Upload, body: (
+      <div className="space-y-4">
+        <ol className="space-y-2">
+          <Step n={1}>Étape <Path>5 · Couverture</Path> : réglez d’abord le gabarit (nombre de pages, papier, dos, rabats) pour obtenir les dimensions exactes.</Step>
+          <Step n={2}>Carte <Path>Couverture déjà réalisée</Path> → <Path>Couverture complète</Path> : choisissez votre fichier (JPG, PNG ou PDF) contenant 4ᵉ + dos + 1ʳᵉ (+ rabats). L’image est posée sur <b>tout</b> le gabarit, elle n’est pas recadrée sur la 1ʳᵉ.</Step>
+          <Step n={3}>EDICREA AI vérifie les proportions : conforme avec ou sans fonds perdus, ou alerte si l’image ne contient que la 1ʳᵉ de couverture ou si le dos ne correspond pas.</Step>
+          <Step n={4}>Vous avez des fichiers séparés ? Choisissez <Path>Par parties</Path> et déposez la 1ʳᵉ, le dos, la 4ᵉ et les rabats : chaque image est placée dans sa zone.</Step>
+          <Step n={5}>Adaptation : <b>Exacte</b> (occupe toute la zone), <b>Remplir</b> (sans déformer, rogne le surplus), <b>Ajuster</b> (image entière). Vous pouvez ensuite tout retoucher dans l’éditeur.</Step>
+        </ol>
+        <Tip>Sans fonds perdus dans votre fichier, désactivez « L’image inclut déjà les fonds perdus » : l’image est alignée sur le format fini et les bords sont prolongés.</Tip>
       </div>
     ),
   },

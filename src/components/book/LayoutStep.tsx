@@ -164,6 +164,7 @@ export default function LayoutStep({ next }: { next: () => void }) {
           <Section title="Pages spéciales et en-têtes" icon={FileText} defaultOpen={false}>
             <Toggle label="Page de titre" checked={L.titlePage} onChange={(v) => set({ titlePage: v })} />
             <Toggle label="Chaque chapitre sur une nouvelle page" checked={L.chapterNewPage} onChange={(v) => set({ chapterNewPage: v })} />
+            {L.chapterNewPage && <Toggle label="Les chapitres (niveau 2) commencent aussi une nouvelle page" hint="Pour les romans divisés en parties" checked={!!L.h2NewPage} onChange={(v) => set({ h2NewPage: v })} />}
             <Toggle label="Chapitres en belle page" hint="Recto, pages blanches insérées" checked={L.chapterOnRecto} onChange={(v) => set({ chapterOnRecto: v })} />
             <Toggle label="Titre courant (en-tête)" checked={L.header} onChange={(v) => set({ header: v })} />
             {L.header && <div className="grid grid-cols-2 gap-2">
@@ -181,7 +182,7 @@ export default function LayoutStep({ next }: { next: () => void }) {
 
       <div className="flex min-w-0 flex-1 flex-col max-lg:min-h-[75vh]">
         <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-1.5">
-          {busy ? <Spinner label="Pagination…" /> : <span className="flex items-center gap-3 text-[12.5px]"><span><b className="tabular-nums">{pages.length}</b> <span className="text-muted">pages</span></span><span className="divider-v" /><span><b className="tabular-nums">{res?.toc.filter((t) => t.level === 1).length || 0}</b> <span className="text-muted">chapitres</span></span><span className="divider-v" /><span className="text-muted">{L.width} × {L.height} mm</span></span>}
+          {busy ? <Spinner label="Pagination…" /> : <span className="flex items-center gap-3 text-[12.5px]"><span><b className="tabular-nums">{pages.length}</b> <span className="text-muted">pages</span></span><span className="divider-v" />{(() => { const nParts = book.blocks.filter((b) => b.type === 'h1').length, nCh = book.blocks.filter((b) => b.type === 'h2').length; return L.h2NewPage && nCh ? <span><b className="tabular-nums">{nParts}</b> <span className="text-muted">parties ·</span> <b className="tabular-nums">{nCh}</b> <span className="text-muted">chapitres</span></span> : <span><b className="tabular-nums">{nParts}</b> <span className="text-muted">chapitres</span></span> })()}<span className="divider-v" /><span className="text-muted">{L.width} × {L.height} mm</span></span>}
           <div className="flex-1" />
           <Seg value={spread ? 'spread' : 'single'} onChange={(v) => setSpread(v === 'spread')} options={[{ v: 'spread', label: <span className="flex items-center gap-1.5"><BookOpen size={13} /> Doubles pages</span> }, { v: 'single', label: <span className="flex items-center gap-1.5"><Square size={13} /> Pages</span> }]} />
           <span className="divider-v" />
